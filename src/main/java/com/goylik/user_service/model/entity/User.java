@@ -24,7 +24,7 @@ public class User extends AuditableEntity {
     @Column(name = "surname", length = 127, nullable = false)
     private String surname;
 
-    @Column(name = "birth_date")
+    @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
     @Column(name = "email", length = 255, nullable = false)
