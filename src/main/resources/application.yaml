@@ -17,3 +17,9 @@ spring:
 
 server:
   port: 8081
+
+app:
+  payment-card:
+    encryption:
+      base64-key: ${APP_PAYMENT_CARD_ENCRYPTION_BASE64_KEY}
+    limit-per-user: 5
