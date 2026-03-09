@@ -16,11 +16,11 @@ public final class UserSpecification {
      * Creates a specification to filter users by first name (case-insensitive, partial match).
      *
      * @param name the first name to search for (can be null)
-     * @return a specification for first name filtering, or {@code null} if the input is null
+     * @return a specification for first name filtering, or {@code conjunction()} if the input is null
      */
     public static Specification<User> hasFirstNameLike(String name) {
         return (root, query, cb) ->
-                name == null ? null :
+                (name == null || name.isBlank()) ? cb.conjunction() :
                         cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%");
     }
 
@@ -28,11 +28,11 @@ public final class UserSpecification {
      * Creates a specification to filter users by surname (case-insensitive, partial match).
      *
      * @param surname the surname to search for (can be null)
-     * @return a specification for surname filtering, or {@code null} if the input is null
+     * @return a specification for surname filtering, or {@code conjunction()} if the input is null
      */
     public static Specification<User> hasSurnameLike(String surname) {
         return (root, query, cb) ->
-                surname == null ? null :
+                (surname == null || surname.isBlank()) ? cb.conjunction() :
                         cb.like(cb.lower(root.get("surname")), "%" + surname.toLowerCase() + "%");
     }
 
