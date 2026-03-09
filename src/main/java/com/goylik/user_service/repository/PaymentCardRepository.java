@@ -7,13 +7,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface PaymentCardRepository extends JpaRepository<PaymentCard, Long> {
     List<PaymentCard> findByUserId(Long userId);
-    long countByUserIdAndDeletedAtIsNull(Long userId);
+    long countByUserId(Long userId);
 
     @Query("""
             SELECT c
@@ -32,13 +33,12 @@ public interface PaymentCardRepository extends JpaRepository<PaymentCard, Long> 
     List<PaymentCard> findActiveCardsByUser(@Param("userId") Long userId);
 
     @Modifying
-    @Query(value = """
-            UPDATE payment_cards c
-            SET c.active = :active,
-                c.updated_at = now()
-            WHERE c.id = :id
-            """, nativeQuery = true)
-    void updateActiveStatus(@Param("id") Long id,
-                            @Param("active") boolean active);
-
+    @Query("""
+       update PaymentCard c
+       set c.active = false
+       where c.active = true
+       and c.deletedAt is null
+       and c.expirationDate < :now
+       """)
+    int deactivateExpiredCards(YearMonth now);
 }
