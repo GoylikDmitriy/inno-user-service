@@ -49,6 +49,13 @@ public interface UserService {
     UserResponse updateUser(Long id, UpdateUserRequest request);
 
     /**
+     * Deletes an existing user.
+     *
+     * @param id identifier of user to delete
+     */
+    void deleteUser(Long id);
+
+    /**
      * Activates user account.
      *
      * @param id user identifier

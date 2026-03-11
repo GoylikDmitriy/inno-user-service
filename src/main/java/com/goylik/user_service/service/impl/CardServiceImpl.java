@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -113,6 +114,17 @@ public class CardServiceImpl implements CardService {
 
         var savedCard = cardRepository.save(card);
         return decryptCardNumberAndMapToResponse(savedCard);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "cards", key = "#id"),
+            @CacheEvict(value = "userCards", allEntries = true)
+    })
+    public void deleteCard(Long id) {
+        var card = fetchCardByIdOrThrow(id);
+        cardRepository.delete(card);
     }
 
     @Override

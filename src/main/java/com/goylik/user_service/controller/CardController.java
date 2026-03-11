@@ -46,9 +46,15 @@ public class CardController {
     }
 
     @PutMapping("/{id}")
-    public CardResponse updateCard(@Positive @PathVariable Long id,
+    public ResponseEntity<CardResponse> updateCard(@Positive @PathVariable Long id,
                                    @Valid @RequestBody UpdateCardRequest request) {
-        return cardService.updateCard(id, request);
+        return ResponseEntity.ok(cardService.updateCard(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCard(@Positive @PathVariable Long id) {
+        cardService.deleteCard(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/activate")

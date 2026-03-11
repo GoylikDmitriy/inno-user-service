@@ -54,6 +54,13 @@ public interface CardService {
     CardResponse updateCard(Long id, UpdateCardRequest request);
 
     /**
+     * Deletes an existing card.
+     *
+     * @param id identifier of card to delete
+     */
+    void deleteCard(Long id);
+
+    /**
      * Activates a card.
      *
      * @param id card identifier

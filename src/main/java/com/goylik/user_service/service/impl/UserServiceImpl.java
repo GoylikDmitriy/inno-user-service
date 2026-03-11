@@ -75,6 +75,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     @CacheEvict(value = "users", key = "#id")
+    public void deleteUser(Long id) {
+        var user = fetchUserByIdOrThrow(id);
+        userRepository.delete(user);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "users", key = "#id")
     public void activateUser(Long id) {
         setActiveStatus(id, true);
     }
