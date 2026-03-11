@@ -11,6 +11,9 @@ import com.goylik.user_service.repository.UserRepository;
 import com.goylik.user_service.service.UserService;
 import com.goylik.user_service.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CachePut(value = "users", key = "#result.id")
     public UserResponse createUser(CreateUserRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw new UserAlreadyExistsException("User with this email already exists");
@@ -38,6 +42,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "users", key = "#id", sync = true)
     public UserResponse getUserById(Long id) {
         User user = fetchUserByIdOrThrow(id);
         return userMapper.toResponse(user);
@@ -58,6 +63,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CachePut(value = "users", key = "#result.id")
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
         User user = fetchUserByIdOrThrow(id);
         userMapper.updateUserFromDto(request, user);
@@ -68,12 +74,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "users", key = "#id")
     public void activateUser(Long id) {
         setActiveStatus(id, true);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "users", key = "#id")
     public void deactivateUser(Long id) {
         setActiveStatus(id, false);
     }
