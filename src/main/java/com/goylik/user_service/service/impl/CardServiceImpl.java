@@ -14,6 +14,10 @@ import com.goylik.user_service.service.CardService;
 import com.goylik.user_service.util.CardNumberUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,6 +37,8 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
+    @CachePut(value = "cards", key = "#result.id")
+    @CacheEvict(value = "userCards", allEntries = true)
     public CardResponse createCard(CreateCardRequest request) {
         validateUserCardLimitOrThrow(request.userId());
         validateCardNumberOrThrow(request.number());
@@ -64,6 +70,7 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "cards", key = "#id", sync = true)
     public CardResponse getCardById(Long id) {
         var card = fetchCardByIdOrThrow(id);
         return decryptCardNumberAndMapToResponse(card);
@@ -83,6 +90,7 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "userCards", key = "#userId", sync = true)
     public List<CardResponse> getAllCardsByUserId(Long userId) {
         return cardRepository.findByUserId(userId)
                 .stream()
@@ -92,6 +100,8 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
+    @CachePut(value = "cards", key = "#id")
+    @CacheEvict(value = "userCards", allEntries = true)
     public CardResponse updateCard(Long id, UpdateCardRequest request) {
         var card = fetchCardByIdOrThrow(id);
         cardMapper.updateCardFromDto(request, card);
@@ -108,12 +118,25 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "cards", key = "#id"),
+            @CacheEvict(value = "userCards", allEntries = true)
+    })
+    public void deleteCard(Long id) {
+        var card = fetchCardByIdOrThrow(id);
+        cardRepository.delete(card);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "cards", key = "#id")
     public void activateCard(Long id) {
         setActiveStatus(id, true);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "cards", key = "#id")
     public void deactivateCard(Long id) {
         setActiveStatus(id, false);
     }
