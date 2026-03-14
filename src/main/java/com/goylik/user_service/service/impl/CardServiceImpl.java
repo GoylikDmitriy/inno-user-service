@@ -3,12 +3,15 @@ package com.goylik.user_service.service.impl;
 import com.goylik.user_service.exception.card.CardLimitExceededException;
 import com.goylik.user_service.exception.card.CardNotFoundException;
 import com.goylik.user_service.exception.card.InvalidCardNumberException;
+import com.goylik.user_service.exception.user.UserNotFoundException;
 import com.goylik.user_service.mapper.CardMapper;
 import com.goylik.user_service.model.dto.request.CreateCardRequest;
 import com.goylik.user_service.model.dto.request.UpdateCardRequest;
 import com.goylik.user_service.model.dto.response.CardResponse;
 import com.goylik.user_service.model.entity.PaymentCard;
+import com.goylik.user_service.model.entity.User;
 import com.goylik.user_service.repository.PaymentCardRepository;
+import com.goylik.user_service.repository.UserRepository;
 import com.goylik.user_service.service.CardCryptoService;
 import com.goylik.user_service.service.CardService;
 import com.goylik.user_service.util.CardNumberUtils;
@@ -31,6 +34,7 @@ public class CardServiceImpl implements CardService {
     private final PaymentCardRepository cardRepository;
     private final CardCryptoService cardCryptoService;
     private final CardMapper cardMapper;
+    private final UserRepository userRepository;
 
     @Value(value = "${app.payment-card.limit-per-user:5}")
     private int cardLimitPerUser;
@@ -43,12 +47,26 @@ public class CardServiceImpl implements CardService {
         validateUserCardLimitOrThrow(request.userId());
         validateCardNumberOrThrow(request.number());
 
-        var card = cardMapper.toEntity(request);
-        card.setNumber(cardCryptoService.encrypt(request.number()));
-        card.setActive(true);
+        var card = mapToEntity(request);
 
         var savedCard = cardRepository.save(card);
         return decryptCardNumberAndMapToResponse(savedCard);
+    }
+
+    private PaymentCard mapToEntity(CreateCardRequest request) {
+        var user = fetchUserByIdOrThrow(request.userId());
+
+        var card = cardMapper.toEntity(request);
+        card.setNumber(cardCryptoService.encrypt(request.number()));
+        card.setUser(user);
+        card.setActive(true);
+
+        return card;
+    }
+
+    private User fetchUserByIdOrThrow(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id = "+ userId));
     }
 
     private void validateUserCardLimitOrThrow(Long userId) {

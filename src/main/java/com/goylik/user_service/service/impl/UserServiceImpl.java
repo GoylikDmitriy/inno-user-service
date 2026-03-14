@@ -29,15 +29,19 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @CachePut(value = "users", key = "#result.id")
     public UserResponse createUser(CreateUserRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new UserAlreadyExistsException("User with this email already exists");
-        }
+        validateEmailNotExistsOrThrow(request.email());
 
         User user = userMapper.toEntity(request);
         user.setActive(true);
 
         User savedUser = userRepository.save(user);
         return userMapper.toResponse(savedUser);
+    }
+
+    private void validateEmailNotExistsOrThrow(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new UserAlreadyExistsException("User with this email already exists");
+        }
     }
 
     @Override
@@ -66,6 +70,10 @@ public class UserServiceImpl implements UserService {
     @CachePut(value = "users", key = "#result.id")
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
         User user = fetchUserByIdOrThrow(id);
+        if (request.email() != null && !request.email().equals(user.getEmail())) {
+            validateEmailNotExistsOrThrow(request.email());
+        }
+
         userMapper.updateUserFromDto(request, user);
 
         User updatedUser = userRepository.save(user);
