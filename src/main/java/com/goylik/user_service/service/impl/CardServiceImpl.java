@@ -44,17 +44,17 @@ public class CardServiceImpl implements CardService {
     @CachePut(value = "cards", key = "#result.id")
     @CacheEvict(value = "userCards", allEntries = true)
     public CardResponse createCard(CreateCardRequest request) {
+        var card = mapToEntity(request);
+
         validateUserCardLimitOrThrow(request.userId());
         validateCardNumberOrThrow(request.number());
-
-        var card = mapToEntity(request);
 
         var savedCard = cardRepository.save(card);
         return decryptCardNumberAndMapToResponse(savedCard);
     }
 
     private PaymentCard mapToEntity(CreateCardRequest request) {
-        var user = fetchUserByIdOrThrow(request.userId());
+        var user = fetchUserByIdWithLockOrThrow(request.userId());
 
         var card = cardMapper.toEntity(request);
         card.setNumber(cardCryptoService.encrypt(request.number()));
@@ -64,8 +64,8 @@ public class CardServiceImpl implements CardService {
         return card;
     }
 
-    private User fetchUserByIdOrThrow(Long userId) {
-        return userRepository.findById(userId)
+    private User fetchUserByIdWithLockOrThrow(Long userId) {
+        return userRepository.findByIdWithLock(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id = "+ userId));
     }
 
@@ -90,19 +90,19 @@ public class CardServiceImpl implements CardService {
     @Transactional(readOnly = true)
     @Cacheable(value = "cards", key = "#id", sync = true)
     public CardResponse getCardById(Long id) {
-        var card = fetchCardByIdOrThrow(id);
+        var card = fetchCardByIdWithUserOrThrow(id);
         return decryptCardNumberAndMapToResponse(card);
     }
 
-    private PaymentCard fetchCardByIdOrThrow(Long id) {
-        return cardRepository.findById(id)
+    private PaymentCard fetchCardByIdWithUserOrThrow(Long id) {
+        return cardRepository.findByIdWithUser(id)
                 .orElseThrow(() -> new CardNotFoundException("Card not found with id: " + id));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CardResponse> getAll(Pageable pageable) {
-        return cardRepository.findAll(pageable)
+        return cardRepository.findAllWithUser(pageable)
                 .map(this::decryptCardNumberAndMapToResponse);
     }
 
@@ -110,7 +110,7 @@ public class CardServiceImpl implements CardService {
     @Transactional(readOnly = true)
     @Cacheable(value = "userCards", key = "#userId", sync = true)
     public List<CardResponse> getAllCardsByUserId(Long userId) {
-        return cardRepository.findByUserId(userId)
+        return cardRepository.findByUserIdWithUser(userId)
                 .stream()
                 .map(this::decryptCardNumberAndMapToResponse)
                 .toList();
@@ -121,7 +121,7 @@ public class CardServiceImpl implements CardService {
     @CachePut(value = "cards", key = "#id")
     @CacheEvict(value = "userCards", allEntries = true)
     public CardResponse updateCard(Long id, UpdateCardRequest request) {
-        var card = fetchCardByIdOrThrow(id);
+        var card = fetchCardByIdWithUserOrThrow(id);
         cardMapper.updateCardFromDto(request, card);
 
         if (request.number() != null) {
@@ -143,6 +143,11 @@ public class CardServiceImpl implements CardService {
     public void deleteCard(Long id) {
         var card = fetchCardByIdOrThrow(id);
         cardRepository.delete(card);
+    }
+
+    private PaymentCard fetchCardByIdOrThrow(Long id) {
+        return cardRepository.findById(id)
+                .orElseThrow(() -> new CardNotFoundException("Card not found with id: " + id));
     }
 
     @Override

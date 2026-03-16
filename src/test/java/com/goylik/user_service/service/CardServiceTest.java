@@ -97,7 +97,7 @@ class CardServiceTest {
         try (MockedStatic<CardNumberUtils> mocked = mockStatic(CardNumberUtils.class)) {
             mocked.when(() -> CardNumberUtils.validate(request.number())).thenReturn(true);
 
-            when(userRepository.findById(request.userId())).thenReturn(Optional.of(card.getUser()));
+            when(userRepository.findByIdWithLock(request.userId())).thenReturn(Optional.of(card.getUser()));
             when(cardRepository.countByUserId(10L)).thenReturn(1L);
             when(cardMapper.toEntity(request)).thenReturn(card);
             when(cardCryptoService.encrypt(request.number())).thenReturn("encrypted");
@@ -123,6 +123,8 @@ class CardServiceTest {
                 YearMonth.of(2029, 10)
         );
 
+        when(userRepository.findByIdWithLock(10L)).thenReturn(Optional.of(card.getUser()));
+        when(cardMapper.toEntity(request)).thenReturn(card);
         when(cardRepository.countByUserId(10L)).thenReturn(5L);
 
         assertThrows(
@@ -143,6 +145,8 @@ class CardServiceTest {
         try (MockedStatic<CardNumberUtils> mocked = mockStatic(CardNumberUtils.class)) {
             mocked.when(() -> CardNumberUtils.validate(request.number())).thenReturn(false);
 
+            when(userRepository.findByIdWithLock(10L)).thenReturn(Optional.of(card.getUser()));
+            when(cardMapper.toEntity(request)).thenReturn(card);
             when(cardRepository.countByUserId(10L)).thenReturn(1L);
 
             assertThrows(
@@ -154,7 +158,7 @@ class CardServiceTest {
 
     @Test
     void getCardById_shouldReturnCard() {
-        when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
+        when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.of(card));
         when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
         when(cardMapper.toResponse(card, "1111222233334444")).thenReturn(response);
 
@@ -162,12 +166,12 @@ class CardServiceTest {
 
         assertEquals(1L, result.id());
 
-        verify(cardRepository).findById(1L);
+        verify(cardRepository).findByIdWithUser(1L);
     }
 
     @Test
     void getCardById_shouldThrowExceptionWhenCardNotFound() {
-        when(cardRepository.findById(1L)).thenReturn(Optional.empty());
+        when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.empty());
 
         assertThrows(
                 CardNotFoundException.class,
@@ -180,7 +184,7 @@ class CardServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<PaymentCard> page = new PageImpl<>(List.of(card));
 
-        when(cardRepository.findAll(pageable)).thenReturn(page);
+        when(cardRepository.findAllWithUser(pageable)).thenReturn(page);
         when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
         when(cardMapper.toResponse(card, "1111222233334444")).thenReturn(response);
 
@@ -191,7 +195,7 @@ class CardServiceTest {
 
     @Test
     void getAllCardsByUserId_shouldReturnListOfUsersCards() {
-        when(cardRepository.findByUserId(10L)).thenReturn(List.of(card));
+        when(cardRepository.findByUserIdWithUser(10L)).thenReturn(List.of(card));
         when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
         when(cardMapper.toResponse(card, "1111222233334444")).thenReturn(response);
 
@@ -204,7 +208,7 @@ class CardServiceTest {
     void updateCard_shouldUpdateCardWithoutChangingNumber() {
         UpdateCardRequest request = new UpdateCardRequest(null, "New Holder", null);
 
-        when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
+        when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.of(card));
         when(cardRepository.save(card)).thenReturn(card);
         when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
         when(cardMapper.toResponse(card, "1111222233334444")).thenReturn(response);
@@ -223,7 +227,7 @@ class CardServiceTest {
         try (MockedStatic<CardNumberUtils> mocked = mockStatic(CardNumberUtils.class)) {
             mocked.when(() -> CardNumberUtils.validate(request.number())).thenReturn(true);
 
-            when(cardRepository.findById(1L)).thenReturn(Optional.of(card));
+            when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.of(card));
             when(cardCryptoService.encrypt(request.number())).thenReturn("encrypted");
             when(cardRepository.save(card)).thenReturn(card);
             when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
@@ -237,7 +241,7 @@ class CardServiceTest {
 
     @Test
     void updateCard_shouldThrowExceptionWhenCardNotFound() {
-        when(cardRepository.findById(1L)).thenReturn(Optional.empty());
+        when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.empty());
 
         assertThrows(
                 CardNotFoundException.class,

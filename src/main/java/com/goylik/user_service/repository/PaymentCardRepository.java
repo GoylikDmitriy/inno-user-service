@@ -1,6 +1,8 @@
 package com.goylik.user_service.repository;
 
 import com.goylik.user_service.model.entity.PaymentCard;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,8 +15,20 @@ import java.util.Optional;
 
 @Repository
 public interface PaymentCardRepository extends JpaRepository<PaymentCard, Long> {
-    List<PaymentCard> findByUserId(Long userId);
     long countByUserId(Long userId);
+
+    @Query("""
+            SELECT c
+            FROM PaymentCard c
+            JOIN FETCH c.user
+            WHERE c.user.id = :userId
+            """)
+    List<PaymentCard> findByUserIdWithUser(Long userId);
+
+    @Query(value = "SELECT c FROM PaymentCard c JOIN FETCH c.user",
+            countQuery = "SELECT COUNT(c) FROM PaymentCard c"
+    )
+    Page<PaymentCard> findAllWithUser(Pageable pageable);
 
     @Query("""
             SELECT c
@@ -23,14 +37,6 @@ public interface PaymentCardRepository extends JpaRepository<PaymentCard, Long> 
             WHERE c.id = :id
             """)
     Optional<PaymentCard> findByIdWithUser(@Param("id") Long id);
-
-    @Query("""
-            SELECT c
-            FROM PaymentCard c
-            WHERE c.user.id = :userId
-            AND c.active = true
-            """)
-    List<PaymentCard> findActiveCardsByUser(@Param("userId") Long userId);
 
     @Modifying
     @Query("""
