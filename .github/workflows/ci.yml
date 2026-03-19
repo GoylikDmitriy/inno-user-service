@@ -3,6 +3,9 @@ name: user-service CI Pipeline
 on:
   push:
     branches: [ "**" ]
+  pull_request:
+    branches: [ "main" ]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   user-service-ci:
@@ -24,7 +27,7 @@ jobs:
 
       - name: Test and Build
         run: mvn verify
-        
+
       - name: SonarCloud Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -32,15 +35,20 @@ jobs:
           mvn sonar:sonar \
             -Dsonar.projectKey=GoylikDmitriy_inno-user-service \
             -Dsonar.organization=goylikdmitriy \
-            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
 
       - name: Log in to Docker Hub
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
+        if: github.event_name == 'push'
         uses: docker/build-push-action@v6
         with:
           context: .
