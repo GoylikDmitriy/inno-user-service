@@ -22,12 +22,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Test
-        run: mvn test
-
-      - name: Build
-        run: mvn package -DskipTests
-
+      - name: Test and Build
+        run: mvn verify
+        
       - name: SonarCloud Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -35,8 +32,7 @@ jobs:
           mvn sonar:sonar \
             -Dsonar.projectKey=GoylikDmitriy_inno-user-service \
             -Dsonar.organization=goylikdmitriy \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.host.url=https://sonarcloud.io
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
