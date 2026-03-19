@@ -1,5 +1,6 @@
 package com.goylik.user_service.service.impl;
 
+import com.goylik.user_service.exception.card.CardHashingException;
 import com.goylik.user_service.service.CardHashService;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,7 @@ public class CardHashServiceImpl implements CardHashService {
             byte[] hashBytes = digest.digest(cardNumber.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hashBytes);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not available", e);
+            throw new CardHashingException("SHA-256 not available", e);
         }
     }
 }

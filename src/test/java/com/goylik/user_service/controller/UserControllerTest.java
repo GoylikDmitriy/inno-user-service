@@ -3,6 +3,8 @@ package com.goylik.user_service.controller;
 import com.goylik.user_service.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
@@ -20,8 +22,8 @@ class UserControllerTest extends BaseIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    private final String BASE_URL = "/api/users";
-    private final String VALID_USER_JSON = """
+    private static final String BASE_URL = "/api/users";
+    private static final String VALID_USER_JSON = """
             {
                 "name": "John",
                 "surname": "Doe",
@@ -62,50 +64,23 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.details.message").value(containsString("already exists")));
     }
 
-    @Test
-    void createUser_ShouldReturn400_WhenNameIsBlank() throws Exception {
+    @ParameterizedTest
+    @CsvSource({
+            "'', Doe, 2000-11-05, john@test.com, name is blank",
+            "John, Doe, 2000-11-05, not-an-email, invalid email format",
+            "John, Doe, 3000-01-01, john@test.com, future birth date"
+    })
+    void createUser_ShouldReturn400_ForInvalidInputs(String name, String surname,
+                                                     String birthDate, String email,
+                                                     String description) throws Exception {
         String invalidJson = """
-                {
-                    "name": "",
-                    "surname": "Doe",
-                    "birthDate": "2000-11-05",
-                    "email": "john@test.com"
-                }
-                """;
-
-        mockMvc.perform(post(BASE_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void createUser_ShouldReturn400_WhenEmailIsInvalid() throws Exception {
-        String invalidJson = """
-                {
-                    "name": "John",
-                    "surname": "Doe",
-                    "birthDate": "2000-11-05",
-                    "email": "not-an-email"
-                }
-                """;
-
-        mockMvc.perform(post(BASE_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void createUser_ShouldReturn400_WhenBirthDateIsInFuture() throws Exception {
-        String invalidJson = """
-                {
-                    "name": "John",
-                    "surname": "Doe",
-                    "birthDate": "3000-01-01",
-                    "email": "john@test.com"
-                }
-                """;
+            {
+                "name": "%s",
+                "surname": "%s",
+                "birthDate": "%s",
+                "email": "%s"
+            }
+            """.formatted(name, surname, birthDate, email);
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -370,7 +345,7 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(status().isNoContent());
 
         var user = userRepository.findById(userId);
-        assertThat(user.isPresent()).isTrue();
+        assertThat(user).isPresent();
         assertThat(user.get().getActive()).isTrue();
     }
 
@@ -382,7 +357,7 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(status().isNoContent());
 
         var user = userRepository.findById(userId);
-        assertThat(user.isPresent()).isTrue();
+        assertThat(user).isPresent();
         assertThat(user.get().getActive()).isFalse();
     }
 
@@ -408,7 +383,7 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(status().isNoContent());
 
         var user = userRepository.findById(userId);
-        assertThat(user.isPresent()).isTrue();
+        assertThat(user).isPresent();
         assertThat(user.get().getActive()).isTrue();
     }
 
@@ -423,7 +398,7 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(status().isNoContent());
 
         var user = userRepository.findById(userId);
-        assertThat(user.isPresent()).isTrue();
+        assertThat(user).isPresent();
         assertThat(user.get().getActive()).isFalse();
     }
 

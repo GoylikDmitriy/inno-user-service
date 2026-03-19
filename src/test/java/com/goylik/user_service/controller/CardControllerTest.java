@@ -33,9 +33,10 @@ class CardControllerTest extends BaseIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    private final String BASE_URL = "/api/cards";
     private Long userId;
-    private final String VALID_CARD_JSON = """
+
+    private static final String BASE_URL = "/api/cards";
+    private static final String VALID_CARD_JSON = """
             {
                 "userId": %d,
                 "number": "4532015112830366",
@@ -44,7 +45,7 @@ class CardControllerTest extends BaseIntegrationTest {
             }
             """;
 
-    private final List<String> VALID_NUMBERS = List.of(
+    private static final List<String> VALID_NUMBERS = List.of(
             "4532015112830366",
             "5555555555554444",
             "4111111111111111",

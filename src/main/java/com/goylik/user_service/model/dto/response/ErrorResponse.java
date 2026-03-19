@@ -9,4 +9,14 @@ public record ErrorResponse(
         String error,
         Map<String, String> details
 ) {
+    public static final String MESSAGE_KEY = "message";
+
+    public static ErrorResponse of(int status, String error, String message) {
+        return new ErrorResponse(
+                LocalDateTime.now(),
+                status,
+                error,
+                Map.of(MESSAGE_KEY, message)
+        );
+    }
 }

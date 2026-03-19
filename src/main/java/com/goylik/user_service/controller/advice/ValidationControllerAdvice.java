@@ -29,7 +29,7 @@ public class ValidationControllerAdvice {
         return new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.BAD_REQUEST.value(),
-                "Validation failed",
+                "Request body validation failed",
                 errors
         );
     }
@@ -48,7 +48,7 @@ public class ValidationControllerAdvice {
         return new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.BAD_REQUEST.value(),
-                "Validation failed",
+                "Request parameter validation failed",
                 errors
         );
     }

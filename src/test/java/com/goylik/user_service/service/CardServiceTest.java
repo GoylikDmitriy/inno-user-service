@@ -1,8 +1,6 @@
 package com.goylik.user_service.service;
 
-import com.goylik.user_service.exception.card.CardLimitExceededException;
-import com.goylik.user_service.exception.card.CardNotFoundException;
-import com.goylik.user_service.exception.card.InvalidCardNumberException;
+import com.goylik.user_service.exception.card.*;
 import com.goylik.user_service.mapper.CardMapper;
 import com.goylik.user_service.model.dto.request.CreateCardRequest;
 import com.goylik.user_service.model.dto.request.UpdateCardRequest;
@@ -163,6 +161,51 @@ class CardServiceTest {
     }
 
     @Test
+    void createCard_shouldThrowCardCryptoException() {
+        CreateCardRequest request = new CreateCardRequest(
+                10L, "1111222233334444", "John Doe", YearMonth.of(2029, 10)
+        );
+
+        try (MockedStatic<CardNumberUtils> mocked = mockStatic(CardNumberUtils.class)) {
+            mocked.when(() -> CardNumberUtils.validate(request.number())).thenReturn(true);
+
+            when(userRepository.findByIdWithLock(10L)).thenReturn(Optional.of(card.getUser()));
+            when(cardRepository.countByUserId(10L)).thenReturn(1L);
+            when(cardMapper.toEntity(request)).thenReturn(card);
+            when(cardCryptoService.encrypt(request.number()))
+                    .thenThrow(new CardCryptoException("Encryption failed"));
+
+            assertThrows(
+                    CardCryptoException.class,
+                    () -> cardService.createCard(request)
+            );
+        }
+    }
+
+    @Test
+    void createCard_shouldThrowCardHashingException() {
+        CreateCardRequest request = new CreateCardRequest(
+                10L, "1111222233334444", "John Doe", YearMonth.of(2029, 10)
+        );
+
+        try (MockedStatic<CardNumberUtils> mocked = mockStatic(CardNumberUtils.class)) {
+            mocked.when(() -> CardNumberUtils.validate(request.number())).thenReturn(true);
+
+            when(userRepository.findByIdWithLock(10L)).thenReturn(Optional.of(card.getUser()));
+            when(cardRepository.countByUserId(10L)).thenReturn(1L);
+            when(cardMapper.toEntity(request)).thenReturn(card);
+            when(cardCryptoService.encrypt(request.number())).thenReturn("encrypted");
+            when(cardHashService.hash(request.number()))
+                    .thenThrow(new CardHashingException("Hashing failed"));
+
+            assertThrows(
+                    CardHashingException.class,
+                    () -> cardService.createCard(request)
+            );
+        }
+    }
+
+    @Test
     void getCardById_shouldReturnCard() {
         when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.of(card));
         when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
@@ -249,10 +292,11 @@ class CardServiceTest {
     @Test
     void updateCard_shouldThrowExceptionWhenCardNotFound() {
         when(cardRepository.findByIdWithUser(1L)).thenReturn(Optional.empty());
+        UpdateCardRequest request = new UpdateCardRequest(null, "New Holder", null);
 
         assertThrows(
                 CardNotFoundException.class,
-                () -> cardService.updateCard(1L, new UpdateCardRequest(null, "New Holder", null))
+                () -> cardService.updateCard(1L, request)
         );
     }
 

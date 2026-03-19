@@ -9,9 +9,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
-import java.util.Map;
-
 @RestControllerAdvice
 @Slf4j
 public class UserControllerAdvice {
@@ -19,11 +16,10 @@ public class UserControllerAdvice {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleUserNotFoundException(UserNotFoundException ex) {
         log.warn("User not found: {}", ex.getMessage());
-        return new ErrorResponse(
-                LocalDateTime.now(),
+        return ErrorResponse.of(
                 HttpStatus.NOT_FOUND.value(),
                 "User not found",
-                Map.of("message", ex.getMessage())
+                ex.getMessage()
         );
     }
 
@@ -31,11 +27,10 @@ public class UserControllerAdvice {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleUserAlreadyExistsException(UserAlreadyExistsException ex) {
         log.warn("User already exists: {}", ex.getMessage());
-        return new ErrorResponse(
-                LocalDateTime.now(),
+        return ErrorResponse.of(
                 HttpStatus.CONFLICT.value(),
                 "User already exists",
-                Map.of("message", ex.getMessage())
+                ex.getMessage()
         );
     }
 }

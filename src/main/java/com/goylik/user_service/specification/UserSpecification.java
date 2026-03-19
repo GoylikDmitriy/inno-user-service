@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.Specification;
  * </p>
  */
 public final class UserSpecification {
+    private UserSpecification() {}
 
     /**
      * Creates a specification to filter users by first name (case-insensitive, partial match).
