@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
-class CardControllerIT extends BaseIntegrationTest {
+class CardControllerTest extends BaseIntegrationTest {
     @Autowired
     private CardService cardService;
 
