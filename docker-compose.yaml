@@ -14,6 +14,11 @@ services:
       - ./postgres-user-service-data:/data/postgres-user-service
     networks:
       - user-network
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   user-service-redis:
     image: redis:7-alpine
@@ -24,6 +29,11 @@ services:
       - ./redis-data:/data/redis-user-service
     networks:
       - user-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   user-service:
     build: .
@@ -31,8 +41,10 @@ services:
     ports:
       - '8081:8081'
     depends_on:
-      - user-service-postgres
-      - user-service-redis
+      user-service-postgres:
+        condition: service_healthy
+      user-service-redis:
+          condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}

@@ -25,6 +25,9 @@ public class PaymentCard extends AuditableEntity {
     @Column(name = "number", nullable = false, length = 255)
     private String number;
 
+    @Column(name = "number_hash", nullable = false, unique = true)
+    private String numberHash;
+
     @Column(name = "holder", nullable = false, length = 255)
     private String holder;
 

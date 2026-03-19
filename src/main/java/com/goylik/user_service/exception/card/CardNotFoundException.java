@@ -1,18 +1,7 @@
 package com.goylik.user_service.exception.card;
 
+import lombok.experimental.StandardException;
+
+@StandardException
 public class CardNotFoundException extends RuntimeException {
-    public CardNotFoundException() {
-    }
-
-    public CardNotFoundException(String message) {
-        super(message);
-    }
-
-    public CardNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public CardNotFoundException(Throwable cause) {
-        super(cause);
-    }
 }

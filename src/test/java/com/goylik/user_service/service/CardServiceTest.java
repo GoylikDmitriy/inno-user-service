@@ -20,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -42,6 +43,12 @@ class CardServiceTest {
 
     @Mock
     private CardCryptoService cardCryptoService;
+
+    @Mock
+    private CardHashService cardHashService;
+
+    @Mock
+    private CacheManager cacheManager;
 
     @Mock
     private CardMapper cardMapper;
@@ -101,6 +108,7 @@ class CardServiceTest {
             when(cardRepository.countByUserId(10L)).thenReturn(1L);
             when(cardMapper.toEntity(request)).thenReturn(card);
             when(cardCryptoService.encrypt(request.number())).thenReturn("encrypted");
+            when(cardHashService.hash(request.number())).thenReturn("12345");
             when(cardRepository.save(card)).thenReturn(card);
             when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
             when(cardMapper.toResponse(card, "1111222233334444")).thenReturn(response);
@@ -124,7 +132,6 @@ class CardServiceTest {
         );
 
         when(userRepository.findByIdWithLock(10L)).thenReturn(Optional.of(card.getUser()));
-        when(cardMapper.toEntity(request)).thenReturn(card);
         when(cardRepository.countByUserId(10L)).thenReturn(5L);
 
         assertThrows(
@@ -146,7 +153,6 @@ class CardServiceTest {
             mocked.when(() -> CardNumberUtils.validate(request.number())).thenReturn(false);
 
             when(userRepository.findByIdWithLock(10L)).thenReturn(Optional.of(card.getUser()));
-            when(cardMapper.toEntity(request)).thenReturn(card);
             when(cardRepository.countByUserId(10L)).thenReturn(1L);
 
             assertThrows(
@@ -231,6 +237,7 @@ class CardServiceTest {
             when(cardCryptoService.encrypt(request.number())).thenReturn("encrypted");
             when(cardRepository.save(card)).thenReturn(card);
             when(cardCryptoService.decrypt("encrypted")).thenReturn("1111222233334444");
+            when(cardHashService.hash(request.number())).thenReturn("12345");
             when(cardMapper.toResponse(card, "1111222233334444")).thenReturn(response);
 
             cardService.updateCard(1L, request);

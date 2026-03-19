@@ -3,19 +3,18 @@ package com.goylik.user_service.util;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-import java.time.LocalDate;
 import java.time.YearMonth;
 
 @Converter(autoApply = true)
-public class YearMonthAttributeConverter implements AttributeConverter<YearMonth, LocalDate> {
+public class YearMonthAttributeConverter implements AttributeConverter<YearMonth, String> {
 
     @Override
-    public LocalDate convertToDatabaseColumn(YearMonth ym) {
-        return ym == null ? null : ym.atDay(1);
+    public String convertToDatabaseColumn(YearMonth attribute) {
+        return attribute != null ? attribute.toString() : null;
     }
 
     @Override
-    public YearMonth convertToEntityAttribute(LocalDate date) {
-        return date == null ? null : YearMonth.from(date);
+    public YearMonth convertToEntityAttribute(String dbData) {
+        return dbData != null ? YearMonth.parse(dbData) : null;
     }
 }

@@ -30,13 +30,19 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: number_hash
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
                   name: holder
                   type: VARCHAR(255)
                   constraints:
                     nullable: false
               - column:
                   name: expiration_date
-                  type: DATE
+                  type: VARCHAR(7)
                   constraints:
                     nullable: false
               - column:

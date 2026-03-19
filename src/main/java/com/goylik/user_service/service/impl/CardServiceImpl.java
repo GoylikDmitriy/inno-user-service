@@ -13,14 +13,15 @@ import com.goylik.user_service.model.entity.User;
 import com.goylik.user_service.repository.PaymentCardRepository;
 import com.goylik.user_service.repository.UserRepository;
 import com.goylik.user_service.service.CardCryptoService;
+import com.goylik.user_service.service.CardHashService;
 import com.goylik.user_service.service.CardService;
 import com.goylik.user_service.util.CardNumberUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,8 +34,11 @@ import java.util.List;
 public class CardServiceImpl implements CardService {
     private final PaymentCardRepository cardRepository;
     private final CardCryptoService cardCryptoService;
+    private final CardHashService cardHashService;
     private final CardMapper cardMapper;
     private final UserRepository userRepository;
+
+    private final CacheManager cacheManager;
 
     @Value(value = "${app.payment-card.limit-per-user:5}")
     private int cardLimitPerUser;
@@ -42,22 +46,23 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     @CachePut(value = "cards", key = "#result.id")
-    @CacheEvict(value = "userCards", allEntries = true)
+    @CacheEvict(value = "userCards", key = "#request.userId()")
     public CardResponse createCard(CreateCardRequest request) {
-        var card = mapToEntity(request);
+        var user = fetchUserByIdWithLockOrThrow(request.userId());
 
         validateUserCardLimitOrThrow(request.userId());
         validateCardNumberOrThrow(request.number());
+
+        var card = mapToEntity(request, user);
 
         var savedCard = cardRepository.save(card);
         return decryptCardNumberAndMapToResponse(savedCard);
     }
 
-    private PaymentCard mapToEntity(CreateCardRequest request) {
-        var user = fetchUserByIdWithLockOrThrow(request.userId());
-
+    private PaymentCard mapToEntity(CreateCardRequest request, User user) {
         var card = cardMapper.toEntity(request);
         card.setNumber(cardCryptoService.encrypt(request.number()));
+        card.setNumberHash(cardHashService.hash(request.number()));
         card.setUser(user);
         card.setActive(true);
 
@@ -119,7 +124,7 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     @CachePut(value = "cards", key = "#id")
-    @CacheEvict(value = "userCards", allEntries = true)
+    @CacheEvict(value = "userCards", key = "#result.userId()")
     public CardResponse updateCard(Long id, UpdateCardRequest request) {
         var card = fetchCardByIdWithUserOrThrow(id);
         cardMapper.updateCardFromDto(request, card);
@@ -128,6 +133,7 @@ public class CardServiceImpl implements CardService {
             validateCardNumberOrThrow(request.number());
 
             card.setNumber(cardCryptoService.encrypt(request.number()));
+            card.setNumberHash(cardHashService.hash(request.number()));
         }
 
         var savedCard = cardRepository.save(card);
@@ -136,12 +142,10 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "cards", key = "#id"),
-            @CacheEvict(value = "userCards", allEntries = true)
-    })
+    @CacheEvict(value = "cards", key = "#id")
     public void deleteCard(Long id) {
         var card = fetchCardByIdOrThrow(id);
+        evictUserCardsCache(card.getUser().getId());
         cardRepository.delete(card);
     }
 
@@ -166,6 +170,14 @@ public class CardServiceImpl implements CardService {
 
     private void setActiveStatus(Long id, boolean activeStatus) {
         var card = fetchCardByIdOrThrow(id);
+        evictUserCardsCache(card.getUser().getId());
         card.setActive(activeStatus);
+    }
+
+    private void evictUserCardsCache(Long userId) {
+        var cache = cacheManager.getCache("userCards");
+        if (cache != null) {
+            cache.evict(userId);
+        }
     }
 }
