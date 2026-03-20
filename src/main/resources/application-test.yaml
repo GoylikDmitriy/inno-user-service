@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  cache:
+    type: none
+
+app:
+  payment-card:
+    encryption:
+      base64-key: dGVzdHRlc3R0ZXN0dGVzdHRlc3Qjr2Ep
+    limit-per-user: 5
