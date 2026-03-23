@@ -1,5 +1,7 @@
 package com.goylik.user_service.service;
 
+import com.goylik.user_service.client.AuthServiceClient;
+import com.goylik.user_service.exception.client.AuthServiceUnavailableException;
 import com.goylik.user_service.exception.user.UserAlreadyExistsException;
 import com.goylik.user_service.exception.user.UserNotFoundException;
 import com.goylik.user_service.mapper.UserMapper;
@@ -7,6 +9,7 @@ import com.goylik.user_service.model.dto.request.CreateUserRequest;
 import com.goylik.user_service.model.dto.request.UpdateUserRequest;
 import com.goylik.user_service.model.dto.response.UserResponse;
 import com.goylik.user_service.model.entity.User;
+import com.goylik.user_service.model.enums.Role;
 import com.goylik.user_service.repository.UserRepository;
 import com.goylik.user_service.service.impl.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,15 +33,11 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
+    @Mock private UserRepository userRepository;
+    @Mock private UserMapper userMapper;
+    @Mock private AuthServiceClient authServiceClient;
 
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private UserMapper userMapper;
-
-    @InjectMocks
-    private UserServiceImpl userService;
+    @InjectMocks private UserServiceImpl userService;
 
     private User user;
     private UserResponse response;
@@ -69,7 +68,8 @@ class UserServiceTest {
                 "John",
                 "Doe",
                 LocalDate.of(2000, 11, 5),
-                "john@mail.com"
+                "john@mail.com",
+                "password"
         );
 
         when(userRepository.existsByEmail(request.email())).thenReturn(false);
@@ -77,7 +77,7 @@ class UserServiceTest {
         when(userRepository.save(user)).thenReturn(user);
         when(userMapper.toResponse(user)).thenReturn(response);
 
-        UserResponse result = userService.createUser(request);
+        UserResponse result = userService.createUser(request, Role.ROLE_USER);
 
         assertNotNull(result);
         assertEquals(response.id(), result.id());
@@ -93,14 +93,15 @@ class UserServiceTest {
                 "John",
                 "Doe",
                 LocalDate.of(2000, 11, 5),
-                "john@mail.com"
+                "john@mail.com",
+                "password"
         );
 
         when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
         assertThrows(
                 UserAlreadyExistsException.class,
-                () -> userService.createUser(request)
+                () -> userService.createUser(request, Role.ROLE_USER)
         );
 
         verify(userRepository).existsByEmail(request.email());
@@ -235,5 +236,112 @@ class UserServiceTest {
                 UserNotFoundException.class,
                 () -> userService.deactivateUser(1L)
         );
+    }
+
+    @Test
+    void createUser_shouldCallAuthServiceClient() {
+        CreateUserRequest request = new CreateUserRequest(
+                "John", "Doe", LocalDate.of(2000, 11, 5),
+                "john@mail.com", "password"
+        );
+
+        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userMapper.toEntity(request)).thenReturn(user);
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toResponse(user)).thenReturn(response);
+
+        userService.createUser(request, Role.ROLE_USER);
+
+        verify(authServiceClient).saveCredentials(argThat(saved ->
+                saved.userId().equals(1L) &&
+                        saved.email().equals("john@mail.com") &&
+                        saved.password().equals("password") &&
+                        saved.role().equals(Role.ROLE_USER)
+        ));
+    }
+
+    @Test
+    void createUser_shouldPropagateException_WhenAuthServiceFails() {
+        CreateUserRequest request = new CreateUserRequest(
+                "John", "Doe", LocalDate.of(2000, 11, 5),
+                "john@mail.com", "password"
+        );
+
+        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userMapper.toEntity(request)).thenReturn(user);
+        when(userRepository.save(user)).thenReturn(user);
+        doThrow(new AuthServiceUnavailableException("Auth service is unavailable"))
+                .when(authServiceClient).saveCredentials(any());
+
+        assertThrows(
+                AuthServiceUnavailableException.class,
+                () -> userService.createUser(request, Role.ROLE_USER)
+        );
+    }
+
+    @Test
+    void updateUser_shouldThrowException_WhenNewEmailAlreadyExists() {
+        UpdateUserRequest request = new UpdateUserRequest(
+                "Jane", "Doe", null, "existing@mail.com"
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.existsByEmail("existing@mail.com")).thenReturn(true);
+
+        assertThrows(
+                UserAlreadyExistsException.class,
+                () -> userService.updateUser(1L, request)
+        );
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUser_shouldNotValidateEmail_WhenEmailIsUnchanged() {
+        UpdateUserRequest request = new UpdateUserRequest(
+                "Jane", "Doe", null, "john@mail.com"
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toResponse(user)).thenReturn(response);
+
+        userService.updateUser(1L, request);
+
+        verify(userRepository, never()).existsByEmail(any());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateUser_shouldNotValidateEmail_WhenEmailIsNull() {
+        UpdateUserRequest request = new UpdateUserRequest("Jane", "Doe", null, null);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toResponse(user)).thenReturn(response);
+
+        userService.updateUser(1L, request);
+
+        verify(userRepository, never()).existsByEmail(any());
+    }
+
+    @Test
+    void deactivateUser_shouldWork_WhenUserAlreadyDeactivated() {
+        user.setActive(false);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        userService.deactivateUser(1L);
+
+        assertFalse(user.getActive());
+    }
+
+    @Test
+    void activateUser_shouldWork_WhenUserAlreadyActive() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        userService.activateUser(1L);
+
+        assertTrue(user.getActive());
     }
 }
