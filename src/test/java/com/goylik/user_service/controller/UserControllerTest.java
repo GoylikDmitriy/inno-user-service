@@ -98,6 +98,92 @@ class UserControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void createAdmin_ShouldReturn403_WhenUserTriesToCreateAdmin() throws Exception {
+        mockMvc.perform(withUser(1L, post(BASE_URL + "/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_USER_JSON)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createAdmin_ShouldReturn403_WhenUnauthenticated() throws Exception {
+        mockMvc.perform(post(BASE_URL + "/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_USER_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createAdmin_ShouldReturn201_WhenAdminCreatesAdmin() throws Exception {
+        String adminJson = """
+            {
+                "name": "Admin",
+                "surname": "User",
+                "birthDate": "2000-11-05",
+                "email": "admin@test.com",
+                "password": "password"
+            }
+            """;
+
+        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(adminJson)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.name").value("Admin"))
+                .andExpect(jsonPath("$.email").value("admin@test.com"))
+                .andExpect(jsonPath("$.active").value(true));
+    }
+
+    @Test
+    void createAdmin_ShouldReturn409_WhenEmailAlreadyExists() throws Exception {
+        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                                "name": "Admin",
+                                "surname": "User",
+                                "birthDate": "2000-11-05",
+                                "email": "admin@test.com",
+                                "password": "password"
+                            }
+                            """)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                                "name": "Admin2",
+                                "surname": "User",
+                                "birthDate": "2000-11-05",
+                                "email": "admin@test.com",
+                                "password": "password"
+                            }
+                            """)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.details.message").value(containsString("already exists")));
+    }
+
+    @Test
+    void createAdmin_ShouldReturn400_WhenInvalidRequest() throws Exception {
+        String invalidJson = """
+            {
+                "name": "",
+                "surname": "User",
+                "birthDate": "3000-01-01",
+                "email": "not-email",
+                "password": ""
+            }
+            """;
+
+        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void getUserById_ShouldReturn200_WhenAdminRequests() throws Exception {
         Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
 
