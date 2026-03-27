@@ -14,3 +14,6 @@ app:
     encryption:
       base64-key: dGVzdHRlc3R0ZXN0dGVzdHRlc3Qjr2Ep
     limit-per-user: 5
+  internal:
+    api-keys:
+      user-service: user-service:key-123123

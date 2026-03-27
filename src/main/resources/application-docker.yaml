@@ -47,3 +47,6 @@ app:
     encryption:
       base64-key: ${APP_PAYMENT_CARD_ENCRYPTION_BASE64_KEY}
     limit-per-user: 5
+  internal:
+    api-keys:
+      user-service: ${USER_SERVICE_API_KEY}
