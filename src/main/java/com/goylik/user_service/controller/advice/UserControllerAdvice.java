@@ -1,5 +1,6 @@
 package com.goylik.user_service.controller.advice;
 
+import com.goylik.user_service.exception.user.AccessDeniedException;
 import com.goylik.user_service.exception.user.UserAlreadyExistsException;
 import com.goylik.user_service.exception.user.UserNotFoundException;
 import com.goylik.user_service.model.dto.response.ErrorResponse;
@@ -30,6 +31,17 @@ public class UserControllerAdvice {
         return ErrorResponse.of(
                 HttpStatus.CONFLICT.value(),
                 "User already exists",
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleAccessDeniedException(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        return ErrorResponse.of(
+                HttpStatus.FORBIDDEN.value(),
+                "Access denied",
                 ex.getMessage()
         );
     }

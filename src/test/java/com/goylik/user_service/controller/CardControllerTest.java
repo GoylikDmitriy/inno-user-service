@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Transactional
 class CardControllerTest extends BaseIntegrationTest {
+
     @Autowired
     private CardService cardService;
 
@@ -78,18 +79,39 @@ class CardControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void createCard_ShouldReturn201_WhenValidRequest() throws Exception {
+    void createCard_ShouldReturn201_WhenAdminCreatesCard() throws Exception {
         String request = String.format(VALID_CARD_JSON, userId);
 
-        mockMvc.perform(post(BASE_URL)
+        mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                        .content(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.userId").value(userId))
                 .andExpect(jsonPath("$.holder").value("John Doe"))
                 .andExpect(jsonPath("$.expirationDate").value("2026-12"))
                 .andExpect(jsonPath("$.active").value(true));
+    }
+
+    @Test
+    void createCard_ShouldReturn201_WhenUserCreatesOwnCard() throws Exception {
+        String request = String.format(VALID_CARD_JSON, userId);
+
+        mockMvc.perform(withUser(userId, post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.userId").value(userId));
+    }
+
+    @Test
+    void createCard_ShouldReturn403_WhenUserCreatesCardForOtherUser() throws Exception {
+        String request = String.format(VALID_CARD_JSON, userId);
+
+        mockMvc.perform(withUser(999L, post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -100,9 +122,9 @@ class CardControllerTest extends BaseIntegrationTest {
 
         String request = String.format(VALID_CARD_JSON, userId);
 
-        mockMvc.perform(post(BASE_URL)
+        mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                        .content(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.message").value(containsString("cannot have more than 5 cards")));
     }
@@ -111,9 +133,9 @@ class CardControllerTest extends BaseIntegrationTest {
     void createCard_ShouldReturn404_WhenUserDoesNotExist() throws Exception {
         String request = String.format(VALID_CARD_JSON, 99999L);
 
-        mockMvc.perform(post(BASE_URL)
+        mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                        .content(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.details.message").value(containsString("User not found")));
     }
@@ -129,9 +151,9 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """.formatted(userId);
 
-        mockMvc.perform(post(BASE_URL)
+        mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidRequest))
+                        .content(invalidRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.message").value(containsString("Card number is invalid")));
     }
@@ -147,17 +169,17 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """.formatted(userId);
 
-        mockMvc.perform(post(BASE_URL)
+        mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidRequest))
+                        .content(invalidRequest)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void getCardById_ShouldReturn200_WhenCardExists() throws Exception {
+    void getCardById_ShouldReturn200_WhenAdminRequests() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(get(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/" + cardId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(cardId))
                 .andExpect(jsonPath("$.userId").value(userId))
@@ -166,15 +188,32 @@ class CardControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void getCardById_ShouldReturn200_WhenOwnerRequests() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        mockMvc.perform(withUser(userId, get(BASE_URL + "/" + cardId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(cardId));
+    }
+
+    @Test
+    void getCardById_ShouldReturn403_WhenUserRequestsOtherUsersCard() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        mockMvc.perform(withUser(999L, get(BASE_URL + "/" + cardId)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getCardById_ShouldReturn404_WhenCardDoesNotExist() throws Exception {
-        mockMvc.perform(get(BASE_URL + "/99999"))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/99999")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.details.message").value(containsString("Card not found")));
     }
 
     @Test
     void getCardById_ShouldReturn400_WhenIdIsNegative() throws Exception {
-        mockMvc.perform(get(BASE_URL + "/-1"))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/-1")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -184,7 +223,7 @@ class CardControllerTest extends BaseIntegrationTest {
         createCard(userId, "5555555555554444");
         createCard(userId, "4111111111111111");
 
-        mockMvc.perform(get(BASE_URL))
+        mockMvc.perform(withAdmin(get(BASE_URL)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(3))
@@ -195,19 +234,25 @@ class CardControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void getAllCards_ShouldReturn403_WhenUserTriesToGetAll() throws Exception {
+        mockMvc.perform(withUser(userId, get(BASE_URL)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getAllCards_ShouldReturnEmptyPage_WhenNoCards() throws Exception {
-        mockMvc.perform(get(BASE_URL))
+        mockMvc.perform(withAdmin(get(BASE_URL)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(0))
                 .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
-    void getAllCardsByUserId_ShouldReturnList_WhenUserHasCards() throws Exception {
+    void getAllCardsByUserId_ShouldReturnList_WhenAdminRequests() throws Exception {
         createCard(userId, "4532015112830366");
         createCard(userId, "5555555555554444");
 
-        mockMvc.perform(get(BASE_URL + "/users/" + userId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/users/" + userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -216,8 +261,24 @@ class CardControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void getAllCardsByUserId_ShouldReturnList_WhenOwnerRequests() throws Exception {
+        createCard(userId, "4532015112830366");
+        createCard(userId, "5555555555554444");
+
+        mockMvc.perform(withUser(userId, get(BASE_URL + "/users/" + userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void getAllCardsByUserId_ShouldReturn403_WhenUserRequestsOtherUsersCards() throws Exception {
+        mockMvc.perform(withUser(999L, get(BASE_URL + "/users/" + userId)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getAllCardsByUserId_ShouldReturnEmptyList_WhenUserHasNoCards() throws Exception {
-        mockMvc.perform(get(BASE_URL + "/users/" + userId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/users/" + userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
@@ -225,7 +286,7 @@ class CardControllerTest extends BaseIntegrationTest {
 
     @Test
     void getAllCardsByUserId_ShouldReturn200_WhenUserDoesNotExist() throws Exception {
-        mockMvc.perform(get(BASE_URL + "/users/99999"))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/users/99999")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
@@ -233,12 +294,12 @@ class CardControllerTest extends BaseIntegrationTest {
 
     @Test
     void getAllCardsByUserId_ShouldReturn400_WhenUserIdIsNegative() throws Exception {
-        mockMvc.perform(get(BASE_URL + "/users/-1"))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/users/-1")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void updateCard_ShouldReturn200_WhenValidRequest() throws Exception {
+    void updateCard_ShouldReturn200_WhenAdminUpdates() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
         String updateRequest = """
@@ -249,14 +310,49 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put(BASE_URL + "/" + cardId)
+        mockMvc.perform(withAdmin(put(BASE_URL + "/" + cardId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(updateRequest))
+                        .content(updateRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(cardId))
                 .andExpect(jsonPath("$.userId").value(userId))
                 .andExpect(jsonPath("$.holder").value("Jane Doe"))
                 .andExpect(jsonPath("$.expirationDate").value("2026-12"));
+    }
+
+    @Test
+    void updateCard_ShouldReturn200_WhenOwnerUpdates() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        String updateRequest = """
+                {
+                    "holder": "Jonathan Doe",
+                    "expirationDate": "2026-12"
+                }
+                """;
+
+        mockMvc.perform(withUser(userId, put(BASE_URL + "/" + cardId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.holder").value("Jonathan Doe"));
+    }
+
+    @Test
+    void updateCard_ShouldReturn403_WhenUserUpdatesOtherUsersCard() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        String updateRequest = """
+                {
+                    "holder": "Hacker",
+                    "expirationDate": "2026-12"
+                }
+                """;
+
+        mockMvc.perform(withUser(999L, put(BASE_URL + "/" + cardId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateRequest)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -269,9 +365,9 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put(BASE_URL + "/99999")
+        mockMvc.perform(withAdmin(put(BASE_URL + "/99999")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(updateRequest))
+                        .content(updateRequest)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.details.message").value(containsString("Card not found")));
     }
@@ -288,25 +384,43 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put(BASE_URL + "/" + cardId)
+        mockMvc.perform(withAdmin(put(BASE_URL + "/" + cardId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidRequest))
+                        .content(invalidRequest)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void deleteCard_ShouldReturn204_WhenCardExists() throws Exception {
+    void deleteCard_ShouldReturn204_WhenAdminDeletes() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(delete(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(delete(BASE_URL + "/" + cardId)))
                 .andExpect(status().isNoContent());
 
         assertThat(cardRepository.findById(cardId)).isEmpty();
     }
 
     @Test
+    void deleteCard_ShouldReturn204_WhenOwnerDeletes() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        mockMvc.perform(withUser(userId, delete(BASE_URL + "/" + cardId)))
+                .andExpect(status().isNoContent());
+
+        assertThat(cardRepository.findById(cardId)).isEmpty();
+    }
+
+    @Test
+    void deleteCard_ShouldReturn403_WhenUserDeletesOtherUsersCard() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        mockMvc.perform(withUser(999L, delete(BASE_URL + "/" + cardId)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void deleteCard_ShouldReturn404_WhenCardDoesNotExist() throws Exception {
-        mockMvc.perform(delete(BASE_URL + "/99999"))
+        mockMvc.perform(withAdmin(delete(BASE_URL + "/99999")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.details.message").value(containsString("Card not found")));
     }
@@ -315,21 +429,21 @@ class CardControllerTest extends BaseIntegrationTest {
     void deleteCard_ShouldReturn404_WhenCardAlreadyDeleted() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(delete(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(delete(BASE_URL + "/" + cardId)))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(delete(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(delete(BASE_URL + "/" + cardId)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void activateCard_ShouldReturn204_WhenCardExists() throws Exception {
+    void activateCard_ShouldReturn204_WhenAdminActivates() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/deactivate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/deactivate")))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/activate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/activate")))
                 .andExpect(status().isNoContent());
 
         CardResponse card = cardService.getCardById(cardId);
@@ -337,10 +451,10 @@ class CardControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void deactivateCard_ShouldReturn204_WhenCardExists() throws Exception {
+    void deactivateCard_ShouldReturn204_WhenAdminDeactivates() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/deactivate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/deactivate")))
                 .andExpect(status().isNoContent());
 
         CardResponse card = cardService.getCardById(cardId);
@@ -348,15 +462,31 @@ class CardControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void activateCard_ShouldReturn403_WhenUserTriesToActivate() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        mockMvc.perform(withUser(userId, patch(BASE_URL + "/" + cardId + "/activate")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deactivateCard_ShouldReturn403_WhenUserTriesToDeactivate() throws Exception {
+        Long cardId = createCardAndGetId(userId, "4532015112830366");
+
+        mockMvc.perform(withUser(userId, patch(BASE_URL + "/" + cardId + "/deactivate")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void activateCard_ShouldReturn404_WhenCardDoesNotExist() throws Exception {
-        mockMvc.perform(patch(BASE_URL + "/99999/activate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/99999/activate")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.details.message").value(containsString("Card not found")));
     }
 
     @Test
     void deactivateCard_ShouldReturn404_WhenCardDoesNotExist() throws Exception {
-        mockMvc.perform(patch(BASE_URL + "/99999/deactivate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/99999/deactivate")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.details.message").value(containsString("Card not found")));
     }
@@ -365,7 +495,7 @@ class CardControllerTest extends BaseIntegrationTest {
     void activateCard_ShouldWork_WhenCardAlreadyActive() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/activate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/activate")))
                 .andExpect(status().isNoContent());
 
         CardResponse card = cardService.getCardById(cardId);
@@ -376,10 +506,10 @@ class CardControllerTest extends BaseIntegrationTest {
     void deactivateCard_ShouldWork_WhenCardAlreadyDeactivated() throws Exception {
         Long cardId = createCardAndGetId(userId, "4532015112830366");
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/deactivate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/deactivate")))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/deactivate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/deactivate")))
                 .andExpect(status().isNoContent());
 
         CardResponse card = cardService.getCardById(cardId);
@@ -390,16 +520,16 @@ class CardControllerTest extends BaseIntegrationTest {
     void completeCardLifecycle_ShouldWork() throws Exception {
         String request = String.format(VALID_CARD_JSON, userId);
 
-        MvcResult createResult = mockMvc.perform(post(BASE_URL)
+        MvcResult createResult = mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                        .content(request)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
         JsonNode createdCard = objectMapper.readTree(createResult.getResponse().getContentAsString());
         Long cardId = createdCard.get("id").asLong();
 
-        mockMvc.perform(get(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/" + cardId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.holder").value("John Doe"));
 
@@ -410,36 +540,36 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(put(BASE_URL + "/" + cardId)
+        mockMvc.perform(withAdmin(put(BASE_URL + "/" + cardId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(updateRequest))
+                        .content(updateRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.holder").value("Jonathan Doe"))
                 .andExpect(jsonPath("$.expirationDate").value("2026-12"));
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/deactivate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/deactivate")))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/" + cardId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
 
-        mockMvc.perform(patch(BASE_URL + "/" + cardId + "/activate"))
+        mockMvc.perform(withAdmin(patch(BASE_URL + "/" + cardId + "/activate")))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/" + cardId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(true));
 
-        mockMvc.perform(get(BASE_URL + "/users/" + userId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/users/" + userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].id").value(cardId));
 
-        mockMvc.perform(delete(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(delete(BASE_URL + "/" + cardId)))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get(BASE_URL + "/" + cardId))
+        mockMvc.perform(withAdmin(get(BASE_URL + "/" + cardId)))
                 .andExpect(status().isNotFound());
     }
 
@@ -455,19 +585,21 @@ class CardControllerTest extends BaseIntegrationTest {
 
         createCard(userId, "4532015112830366");
         createCard(userId, "5555555555554444");
-
         createCard(userId2, "4111111111111111");
 
-        mockMvc.perform(get(BASE_URL + "/users/" + userId))
+        mockMvc.perform(withUser(userId, get(BASE_URL + "/users/" + userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].userId").value(userId))
                 .andExpect(jsonPath("$[1].userId").value(userId));
 
-        mockMvc.perform(get(BASE_URL + "/users/" + userId2))
+        mockMvc.perform(withUser(userId2, get(BASE_URL + "/users/" + userId2)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].userId").value(userId2));
+
+        mockMvc.perform(withUser(userId, get(BASE_URL + "/users/" + userId2)))
+                .andExpect(status().isForbidden());
     }
 
     private void createCard(Long userId, String cardNumber) throws Exception {
@@ -480,9 +612,9 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """.formatted(userId, cardNumber);
 
-        mockMvc.perform(post(BASE_URL)
+        mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                        .content(request)))
                 .andExpect(status().isCreated());
     }
 
@@ -496,9 +628,9 @@ class CardControllerTest extends BaseIntegrationTest {
                 }
                 """.formatted(userId, cardNumber);
 
-        MvcResult result = mockMvc.perform(post(BASE_URL)
+        MvcResult result = mockMvc.perform(withAdmin(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
+                        .content(request)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
