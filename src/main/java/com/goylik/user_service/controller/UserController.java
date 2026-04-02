@@ -30,6 +30,11 @@ public class UserController {
                 .body(userService.createUser(request, Role.ROLE_USER));
     }
 
+    @GetMapping("/internal/{id}")
+    public ResponseEntity<UserResponse> getUserByIdInternal(@Positive @PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserById(id));
+    }
+
     @PostMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponse> createAdmin(@Valid @RequestBody CreateUserRequest request) {

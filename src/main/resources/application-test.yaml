@@ -17,3 +17,4 @@ app:
   internal:
     api-keys:
       user-service: user-service:key-123123
+      order-service: order-service:key-321321
