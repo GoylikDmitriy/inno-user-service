@@ -1,33 +1,26 @@
 package com.goylik.user_service.model.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @MappedSuperclass
 @Getter @Setter
+@EntityListeners(AuditingEntityListener.class)
 public abstract class AuditableEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     protected LocalDateTime createdAt;
 
     @Column(name = "updated_at")
+    @LastModifiedDate
     protected LocalDateTime updatedAt;
 
     @Column(name = "deleted_at")
     protected LocalDateTime deletedAt;
-
-    @PrePersist
-    void prePersist() {
-        createdAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }
