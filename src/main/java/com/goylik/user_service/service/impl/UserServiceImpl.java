@@ -22,6 +22,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -116,6 +118,15 @@ public class UserServiceImpl implements UserService {
     @CacheEvict(value = "users", key = "#id")
     public void deactivateUser(Long id) {
         setActiveStatus(id, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsersByIds(List<Long> ids) {
+        List<User> users = userRepository.findAllById(ids);
+        return users.stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     private void setActiveStatus(Long id, boolean activeStatus) {

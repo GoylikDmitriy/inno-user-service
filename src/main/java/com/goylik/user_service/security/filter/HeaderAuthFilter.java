@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,18 +21,26 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String userId = request.getHeader("X-User-Id");
+        String userIdStr = request.getHeader("X-User-Id");
         String role = request.getHeader("X-User-Role");
 
-        if (userId != null && role != null) {
-            var principal = new UserPrincipal(Long.parseLong(userId), role);
-            var auth = new UsernamePasswordAuthenticationToken(
-                    principal,
-                    null,
-                    List.of(new SimpleGrantedAuthority(role))
-            );
+        if (userIdStr != null && role != null) {
+            try {
+                Long userId = Long.parseLong(userIdStr);
+                var principal = new UserPrincipal(userId, role);
+                var auth = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        List.of(new SimpleGrantedAuthority(role))
+                );
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            } catch (NumberFormatException ex) {
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Invalid X-User-Id format\"}");
+                return;
+            }
         }
 
         filterChain.doFilter(request, response);

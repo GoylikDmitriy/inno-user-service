@@ -6,6 +6,7 @@ import com.goylik.user_service.model.dto.response.UserResponse;
 import com.goylik.user_service.model.enums.Role;
 import com.goylik.user_service.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -33,6 +36,11 @@ public class UserController {
     @GetMapping("/internal/{id}")
     public ResponseEntity<UserResponse> getUserByIdInternal(@Positive @PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
+    }
+
+    @GetMapping("/api/users/internal")
+    public ResponseEntity<List<UserResponse>> getUsersByIdsInternal(@NotEmpty @RequestParam("id") List<Long> ids) {
+        return ResponseEntity.ok(userService.getUsersByIds(ids));
     }
 
     @PostMapping("/admin")
