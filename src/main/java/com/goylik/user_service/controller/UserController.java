@@ -38,7 +38,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    @GetMapping("/api/users/internal")
+    @GetMapping("/internal")
     public ResponseEntity<List<UserResponse>> getUsersByIdsInternal(@NotEmpty @RequestParam("id") List<Long> ids) {
         return ResponseEntity.ok(userService.getUsersByIds(ids));
     }

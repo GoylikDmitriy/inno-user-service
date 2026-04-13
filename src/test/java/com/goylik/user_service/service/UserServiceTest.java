@@ -135,6 +135,66 @@ class UserServiceTest {
     }
 
     @Test
+    void getUsersByIds_shouldReturnListOfUsers_whenIdsExist() {
+        List<Long> ids = List.of(1L, 2L);
+        User user2 = new User();
+        user2.setId(2L);
+        user2.setName("Jane");
+        user2.setSurname("Smith");
+        user2.setEmail("jane@mail.com");
+        user2.setBirthDate(LocalDate.of(1995, 5, 15));
+        user2.setActive(true);
+
+        UserResponse response2 = new UserResponse(
+                2L, "Jane", "Smith", LocalDate.of(1995, 5, 15), "jane@mail.com", true
+        );
+
+        when(userRepository.findAllById(ids)).thenReturn(List.of(user, user2));
+        when(userMapper.toResponse(user)).thenReturn(response);
+        when(userMapper.toResponse(user2)).thenReturn(response2);
+
+        List<UserResponse> result = userService.getUsersByIds(ids);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(1L, result.get(0).id());
+        assertEquals(2L, result.get(1).id());
+
+        verify(userRepository).findAllById(ids);
+        verify(userMapper, times(2)).toResponse(any(User.class));
+    }
+
+    @Test
+    void getUsersByIds_shouldReturnOnlyExistingUsers_whenSomeIdsDoNotExist() {
+        List<Long> ids = List.of(1L, 999L);
+        when(userRepository.findAllById(ids)).thenReturn(List.of(user));
+        when(userMapper.toResponse(user)).thenReturn(response);
+
+        List<UserResponse> result = userService.getUsersByIds(ids);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).id());
+
+        verify(userRepository).findAllById(ids);
+        verify(userMapper, times(1)).toResponse(user);
+    }
+
+    @Test
+    void getUsersByIds_shouldReturnEmptyList_whenNoUsersFound() {
+        List<Long> ids = List.of(999L, 1000L);
+        when(userRepository.findAllById(ids)).thenReturn(List.of());
+
+        List<UserResponse> result = userService.getUsersByIds(ids);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+
+        verify(userRepository).findAllById(ids);
+        verify(userMapper, never()).toResponse(any());
+    }
+
+    @Test
     void getAll_shouldReturnPageOfUsers() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<User> userPage = new PageImpl<>(List.of(user));
