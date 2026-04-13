@@ -50,3 +50,4 @@ app:
   internal:
     api-keys:
       user-service: ${USER_SERVICE_API_KEY}
+      order-service: ${ORDER_SERVICE_API_KEY}

@@ -3,10 +3,8 @@ package com.goylik.user_service.client.config;
 import feign.RequestInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
-public class InternalFeignConfig {
+public class AuthServiceFeignConfig {
     @Value("${app.internal.api-keys.user-service}")
     private String internalApiKey;
 

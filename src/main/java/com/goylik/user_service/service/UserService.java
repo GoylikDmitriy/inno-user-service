@@ -7,6 +7,8 @@ import com.goylik.user_service.model.enums.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 /**
  * Service interface for managing users.
  * Provides operations for creating, retrieving, updating
@@ -69,4 +71,12 @@ public interface UserService {
      * @param id user identifier
      */
     void deactivateUser(Long id);
+
+    /**
+     * Retrieves all users by identifiers.
+     *
+     * @param ids user identifiers
+     * @return list of user representations
+     */
+    List<UserResponse> getUsersByIds(List<Long> ids);
 }

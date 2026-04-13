@@ -28,6 +28,10 @@ class UserControllerTest extends BaseIntegrationTest {
     @MockitoBean
     protected AuthServiceClient authServiceClient;
 
+    private static final String INTERNAL_API_KEY = "order-service:key-321321";
+    private static final String INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key";
+
+
     private static final String BASE_URL = "/api/users";
     private static final String VALID_USER_JSON = """
             {
@@ -222,6 +226,118 @@ class UserControllerTest extends BaseIntegrationTest {
     void getUserById_ShouldReturn400_WhenIdIsNegative() throws Exception {
         mockMvc.perform(withAdmin(get(BASE_URL + "/-1")))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getUserByIdInternal_ShouldReturn200_WhenUserExists() throws Exception {
+        Long id = createUserAndGetId("John", "Doe", "john@test.com", "password");
+
+        mockMvc.perform(get(BASE_URL + "/internal/" + id)
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.email").value("john@test.com"))
+                .andExpect(jsonPath("$.name").value("John"));
+    }
+
+    @Test
+    void getUserByIdInternal_ShouldReturn404_WhenUserNotFound() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal/1111111111")
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.details.message")
+                        .value(containsString("not found")));
+    }
+
+    @Test
+    void getUserByIdInternal_ShouldReturn403_WhenApiKeyIsMissing() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getUserByIdInternal_ShouldReturn403_WhenApiKeyIsWrong() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal/1")
+                        .header("X-Internal-Api-Key", "wrong-key"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getUserByIdInternal_ShouldReturn400_WhenIdIsInvalid() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal/-999999")
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn200_WhenUsersExist() throws Exception {
+        Long id1 = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long id2 = createUserAndGetId("Jane", "Smith", "jane@test.com", "password");
+
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .param("id", String.valueOf(id1))
+                        .param("id", String.valueOf(id2))
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[*].id", containsInAnyOrder(id1.intValue(), id2.intValue())))
+                .andExpect(jsonPath("$[*].email", containsInAnyOrder("john@test.com", "jane@test.com")));
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn200_WhenSingleId() throws Exception {
+        Long id = createUserAndGetId("John", "Doe", "john@test.com", "password");
+
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .param("id", String.valueOf(id))
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(id));
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn200_WhenSomeIdsDoNotExist() throws Exception {
+        Long existingId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long nonExistentId = 999999L;
+
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .param("id", String.valueOf(existingId))
+                        .param("id", String.valueOf(nonExistentId))
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(existingId));
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn400_WhenIdsEmpty() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .param("id", "")   // пустое значение не может быть преобразовано в Long
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn400_WhenNoIdParam() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn403_WhenApiKeyMissing() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .param("id", "1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getUsersByIdsInternal_ShouldReturn403_WhenApiKeyWrong() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/internal")
+                        .param("id", "1")
+                        .header("X-Internal-Api-Key", "wrong-key"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

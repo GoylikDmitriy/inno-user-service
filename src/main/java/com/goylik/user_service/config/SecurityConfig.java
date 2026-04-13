@@ -1,6 +1,7 @@
 package com.goylik.user_service.config;
 
 import com.goylik.user_service.security.filter.HeaderAuthFilter;
+import com.goylik.user_service.security.filter.InternalApiKeyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final HeaderAuthFilter headerAuthFilter;
+    private final InternalApiKeyFilter internalApiKeyFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) {
@@ -28,9 +30,11 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
+                        .requestMatchers("/api/users/internal/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(headerAuthFilter, InternalApiKeyFilter.class)
                 .build();
     }
 }
