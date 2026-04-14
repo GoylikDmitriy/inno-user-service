@@ -44,6 +44,10 @@ public class UserController {
 
     @DeleteMapping("/internal/{id}")
     public ResponseEntity<Void> deleteUserInternal(@Positive @PathVariable Long id) {
+        return deleteUserById(id);
+    }
+
+    private ResponseEntity<Void> deleteUserById(Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
@@ -72,8 +76,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.userId")
     public ResponseEntity<Void> deleteUser(@Positive @PathVariable Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+        return deleteUserById(id);
     }
 
     @PatchMapping("/{id}/activate")
