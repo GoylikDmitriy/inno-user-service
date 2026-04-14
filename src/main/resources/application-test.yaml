@@ -16,5 +16,7 @@ app:
     limit-per-user: 5
   internal:
     api-keys:
+      trusted-services:
+        - order-service:key-321321
+        - gateway:key-231231
       user-service: user-service:key-123123
-      order-service: order-service:key-321321

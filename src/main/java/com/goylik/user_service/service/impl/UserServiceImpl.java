@@ -1,15 +1,12 @@
 package com.goylik.user_service.service.impl;
 
-import com.goylik.user_service.client.AuthServiceClient;
 import com.goylik.user_service.exception.user.UserAlreadyExistsException;
 import com.goylik.user_service.exception.user.UserNotFoundException;
 import com.goylik.user_service.mapper.UserMapper;
-import com.goylik.user_service.model.dto.client.SaveCredentialsRequest;
 import com.goylik.user_service.model.dto.request.CreateUserRequest;
 import com.goylik.user_service.model.dto.request.UpdateUserRequest;
 import com.goylik.user_service.model.dto.response.UserResponse;
 import com.goylik.user_service.model.entity.User;
-import com.goylik.user_service.model.enums.Role;
 import com.goylik.user_service.repository.UserRepository;
 import com.goylik.user_service.service.UserService;
 import com.goylik.user_service.specification.UserSpecification;
@@ -30,20 +27,16 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
 
-    private final AuthServiceClient authServiceClient;
-
     @Override
     @Transactional
     @CachePut(value = "users", key = "#result.id")
-    public UserResponse createUser(CreateUserRequest request, Role role) {
+    public UserResponse createUser(CreateUserRequest request) {
         validateEmailNotExistsOrThrow(request.email());
 
         User user = userMapper.toEntity(request);
         user.setActive(true);
 
         User savedUser = userRepository.save(user);
-
-        saveCredentials(savedUser, request.password(), role);
 
         return userMapper.toResponse(savedUser);
     }
@@ -52,14 +45,6 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(email)) {
             throw new UserAlreadyExistsException("User with this email already exists");
         }
-    }
-
-    private void saveCredentials(User user, String password, Role role) {
-        authServiceClient.saveCredentials(new SaveCredentialsRequest(
-                user.getId(),
-                user.getEmail(),
-                password,
-                role));
     }
 
     @Override

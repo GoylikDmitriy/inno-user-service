@@ -1,7 +1,5 @@
 package com.goylik.user_service.service;
 
-import com.goylik.user_service.client.AuthServiceClient;
-import com.goylik.user_service.exception.client.AuthServiceUnavailableException;
 import com.goylik.user_service.exception.user.UserAlreadyExistsException;
 import com.goylik.user_service.exception.user.UserNotFoundException;
 import com.goylik.user_service.mapper.UserMapper;
@@ -9,7 +7,6 @@ import com.goylik.user_service.model.dto.request.CreateUserRequest;
 import com.goylik.user_service.model.dto.request.UpdateUserRequest;
 import com.goylik.user_service.model.dto.response.UserResponse;
 import com.goylik.user_service.model.entity.User;
-import com.goylik.user_service.model.enums.Role;
 import com.goylik.user_service.repository.UserRepository;
 import com.goylik.user_service.service.impl.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,8 +32,6 @@ import static org.mockito.Mockito.*;
 class UserServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private UserMapper userMapper;
-    @Mock private AuthServiceClient authServiceClient;
-
     @InjectMocks private UserServiceImpl userService;
 
     private User user;
@@ -68,8 +63,7 @@ class UserServiceTest {
                 "John",
                 "Doe",
                 LocalDate.of(2000, 11, 5),
-                "john@mail.com",
-                "password"
+                "john@mail.com"
         );
 
         when(userRepository.existsByEmail(request.email())).thenReturn(false);
@@ -77,7 +71,7 @@ class UserServiceTest {
         when(userRepository.save(user)).thenReturn(user);
         when(userMapper.toResponse(user)).thenReturn(response);
 
-        UserResponse result = userService.createUser(request, Role.ROLE_USER);
+        UserResponse result = userService.createUser(request);
 
         assertNotNull(result);
         assertEquals(response.id(), result.id());
@@ -93,15 +87,14 @@ class UserServiceTest {
                 "John",
                 "Doe",
                 LocalDate.of(2000, 11, 5),
-                "john@mail.com",
-                "password"
+                "john@mail.com"
         );
 
         when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
         assertThrows(
                 UserAlreadyExistsException.class,
-                () -> userService.createUser(request, Role.ROLE_USER)
+                () -> userService.createUser(request)
         );
 
         verify(userRepository).existsByEmail(request.email());
@@ -295,47 +288,6 @@ class UserServiceTest {
         assertThrows(
                 UserNotFoundException.class,
                 () -> userService.deactivateUser(1L)
-        );
-    }
-
-    @Test
-    void createUser_shouldCallAuthServiceClient() {
-        CreateUserRequest request = new CreateUserRequest(
-                "John", "Doe", LocalDate.of(2000, 11, 5),
-                "john@mail.com", "password"
-        );
-
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
-        when(userMapper.toEntity(request)).thenReturn(user);
-        when(userRepository.save(user)).thenReturn(user);
-        when(userMapper.toResponse(user)).thenReturn(response);
-
-        userService.createUser(request, Role.ROLE_USER);
-
-        verify(authServiceClient).saveCredentials(argThat(saved ->
-                saved.userId().equals(1L) &&
-                        saved.email().equals("john@mail.com") &&
-                        saved.password().equals("password") &&
-                        saved.role().equals(Role.ROLE_USER)
-        ));
-    }
-
-    @Test
-    void createUser_shouldPropagateException_WhenAuthServiceFails() {
-        CreateUserRequest request = new CreateUserRequest(
-                "John", "Doe", LocalDate.of(2000, 11, 5),
-                "john@mail.com", "password"
-        );
-
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
-        when(userMapper.toEntity(request)).thenReturn(user);
-        when(userRepository.save(user)).thenReturn(user);
-        doThrow(new AuthServiceUnavailableException("Auth service is unavailable"))
-                .when(authServiceClient).saveCredentials(any());
-
-        assertThrows(
-                AuthServiceUnavailableException.class,
-                () -> userService.createUser(request, Role.ROLE_USER)
         );
     }
 

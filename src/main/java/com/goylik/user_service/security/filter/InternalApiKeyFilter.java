@@ -1,10 +1,11 @@
 package com.goylik.user_service.security.filter;
 
+import com.goylik.user_service.config.InternalApiKeysProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -12,9 +13,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
 public class InternalApiKeyFilter extends OncePerRequestFilter {
-    @Value("${app.internal.api-keys.order-service}")
-    private String orderServiceInternalKey;
+    private final InternalApiKeysProperties apiKeysProperties;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -22,12 +23,11 @@ public class InternalApiKeyFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         if (request.getRequestURI().startsWith("/api/users/internal")) {
             String key = request.getHeader("X-Internal-Api-Key");
-            if (key == null || !key.equals(orderServiceInternalKey)) {
+            if (key == null || !apiKeysProperties.getTrustedServices().contains(key)) {
                 response.setStatus(HttpStatus.FORBIDDEN.value());
                 return;
             }
         }
-
         filterChain.doFilter(request, response);
     }
 }

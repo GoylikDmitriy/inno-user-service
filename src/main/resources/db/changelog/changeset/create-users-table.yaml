@@ -32,6 +32,8 @@ databaseChangeLog:
               - column:
                   name: birth_date
                   type: DATE
+                  constraints:
+                    nullable: false
               - column:
                   name: email
                   type: VARCHAR(255)

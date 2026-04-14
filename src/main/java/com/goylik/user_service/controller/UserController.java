@@ -3,7 +3,6 @@ package com.goylik.user_service.controller;
 import com.goylik.user_service.model.dto.request.CreateUserRequest;
 import com.goylik.user_service.model.dto.request.UpdateUserRequest;
 import com.goylik.user_service.model.dto.response.UserResponse;
-import com.goylik.user_service.model.enums.Role;
 import com.goylik.user_service.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -30,7 +29,7 @@ public class UserController {
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(userService.createUser(request, Role.ROLE_USER));
+                .body(userService.createUser(request));
     }
 
     @GetMapping("/internal/{id}")
@@ -43,12 +42,10 @@ public class UserController {
         return ResponseEntity.ok(userService.getUsersByIds(ids));
     }
 
-    @PostMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserResponse> createAdmin(@Valid @RequestBody CreateUserRequest request) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(userService.createUser(request, Role.ROLE_ADMIN));
+    @DeleteMapping("/internal/{id}")
+    public ResponseEntity<Void> deleteUserInternal(@Positive @PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

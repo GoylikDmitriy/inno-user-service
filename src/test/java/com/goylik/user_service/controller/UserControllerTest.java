@@ -1,6 +1,5 @@
 package com.goylik.user_service.controller;
 
-import com.goylik.user_service.client.AuthServiceClient;
 import com.goylik.user_service.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,7 +7,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -25,9 +23,6 @@ class UserControllerTest extends BaseIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    @MockitoBean
-    protected AuthServiceClient authServiceClient;
-
     private static final String INTERNAL_API_KEY = "order-service:key-321321";
     private static final String INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key";
 
@@ -38,8 +33,7 @@ class UserControllerTest extends BaseIntegrationTest {
                 "name": "John",
                 "surname": "Doe",
                 "birthDate": "2000-11-05",
-                "email": "john@test.com",
-                "password": "password"
+                "email": "john@test.com"
             }
             """;
 
@@ -77,23 +71,21 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @ParameterizedTest
     @CsvSource({
-            "'', Doe, 2000-11-05, john@test.com, password, name is blank",
-            "John, Doe, 2000-11-05, not-an-email, password, invalid email format",
-            "John, Doe, 3000-01-01, john@test.com, password, future birth date",
-            "John, Doe, 2000-11-05, john@test.com, '', password is blank"
+            "'', Doe, 2000-11-05, john@test.com, name is blank",
+            "John, Doe, 2000-11-05, not-an-email, invalid email format",
+            "John, Doe, 3000-01-01, john@test.com, future birth date",
     })
     void createUser_ShouldReturn400_ForInvalidInputs(String name, String surname,
                                                      String birthDate, String email,
-                                                     String password, String description) throws Exception {
+                                                     String description) throws Exception {
         String invalidJson = """
                 {
                     "name": "%s",
                     "surname": "%s",
                     "birthDate": "%s",
-                    "email": "%s",
-                    "password": "%s"
+                    "email": "%s"
                 }
-                """.formatted(name, surname, birthDate, email, password);
+                """.formatted(name, surname, birthDate, email);
 
         mockMvc.perform(post(BASE_URL + "/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -102,94 +94,8 @@ class UserControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void createAdmin_ShouldReturn403_WhenUserTriesToCreateAdmin() throws Exception {
-        mockMvc.perform(withUser(1L, post(BASE_URL + "/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_USER_JSON)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void createAdmin_ShouldReturn403_WhenUnauthenticated() throws Exception {
-        mockMvc.perform(post(BASE_URL + "/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_USER_JSON))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void createAdmin_ShouldReturn201_WhenAdminCreatesAdmin() throws Exception {
-        String adminJson = """
-            {
-                "name": "Admin",
-                "surname": "User",
-                "birthDate": "2000-11-05",
-                "email": "admin@test.com",
-                "password": "password"
-            }
-            """;
-
-        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(adminJson)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNumber())
-                .andExpect(jsonPath("$.name").value("Admin"))
-                .andExpect(jsonPath("$.email").value("admin@test.com"))
-                .andExpect(jsonPath("$.active").value(true));
-    }
-
-    @Test
-    void createAdmin_ShouldReturn409_WhenEmailAlreadyExists() throws Exception {
-        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {
-                                "name": "Admin",
-                                "surname": "User",
-                                "birthDate": "2000-11-05",
-                                "email": "admin@test.com",
-                                "password": "password"
-                            }
-                            """)))
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {
-                                "name": "Admin2",
-                                "surname": "User",
-                                "birthDate": "2000-11-05",
-                                "email": "admin@test.com",
-                                "password": "password"
-                            }
-                            """)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.details.message").value(containsString("already exists")));
-    }
-
-    @Test
-    void createAdmin_ShouldReturn400_WhenInvalidRequest() throws Exception {
-        String invalidJson = """
-            {
-                "name": "",
-                "surname": "User",
-                "birthDate": "3000-01-01",
-                "email": "not-email",
-                "password": ""
-            }
-            """;
-
-        mockMvc.perform(withAdmin(post(BASE_URL + "/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void getUserById_ShouldReturn200_WhenAdminRequests() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(get(BASE_URL + "/" + userId)))
                 .andExpect(status().isOk())
@@ -200,7 +106,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getUserById_ShouldReturn200_WhenUserRequestsOwnData() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withUser(userId, get(BASE_URL + "/" + userId)))
                 .andExpect(status().isOk())
@@ -209,7 +115,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getUserById_ShouldReturn403_WhenUserRequestsOtherUserData() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withUser(999L, get(BASE_URL + "/" + userId)))
                 .andExpect(status().isForbidden());
@@ -230,7 +136,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getUserByIdInternal_ShouldReturn200_WhenUserExists() throws Exception {
-        Long id = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long id = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(get(BASE_URL + "/internal/" + id)
                         .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
@@ -271,8 +177,8 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getUsersByIdsInternal_ShouldReturn200_WhenUsersExist() throws Exception {
-        Long id1 = createUserAndGetId("John", "Doe", "john@test.com", "password");
-        Long id2 = createUserAndGetId("Jane", "Smith", "jane@test.com", "password");
+        Long id1 = createUserAndGetId("John", "Doe", "john@test.com");
+        Long id2 = createUserAndGetId("Jane", "Smith", "jane@test.com");
 
         mockMvc.perform(get(BASE_URL + "/internal")
                         .param("id", String.valueOf(id1))
@@ -286,7 +192,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getUsersByIdsInternal_ShouldReturn200_WhenSingleId() throws Exception {
-        Long id = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long id = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(get(BASE_URL + "/internal")
                         .param("id", String.valueOf(id))
@@ -298,7 +204,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getUsersByIdsInternal_ShouldReturn200_WhenSomeIdsDoNotExist() throws Exception {
-        Long existingId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long existingId = createUserAndGetId("John", "Doe", "john@test.com");
         Long nonExistentId = 999999L;
 
         mockMvc.perform(get(BASE_URL + "/internal")
@@ -313,7 +219,7 @@ class UserControllerTest extends BaseIntegrationTest {
     @Test
     void getUsersByIdsInternal_ShouldReturn400_WhenIdsEmpty() throws Exception {
         mockMvc.perform(get(BASE_URL + "/internal")
-                        .param("id", "")   // пустое значение не может быть преобразовано в Long
+                        .param("id", "")
                         .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
                 .andExpect(status().isBadRequest());
     }
@@ -341,10 +247,53 @@ class UserControllerTest extends BaseIntegrationTest {
     }
 
     @Test
+    void deleteUserInternal_ShouldReturn204_WhenUserExists() throws Exception {
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
+
+        mockMvc.perform(delete(BASE_URL + "/internal/" + userId)
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isNoContent());
+
+        assertThat(userRepository.findById(userId)).isEmpty();
+    }
+
+    @Test
+    void deleteUserInternal_ShouldReturn404_WhenUserNotFound() throws Exception {
+        mockMvc.perform(delete(BASE_URL + "/internal/99999")
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.details.message").value(containsString("not found")));
+    }
+
+    @Test
+    void deleteUserInternal_ShouldReturn400_WhenIdIsInvalid() throws Exception {
+        mockMvc.perform(delete(BASE_URL + "/internal/-1")
+                        .header(INTERNAL_API_KEY_HEADER, INTERNAL_API_KEY))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deleteUserInternal_ShouldReturn403_WhenApiKeyMissing() throws Exception {
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
+
+        mockMvc.perform(delete(BASE_URL + "/internal/" + userId))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteUserInternal_ShouldReturn403_WhenApiKeyWrong() throws Exception {
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
+
+        mockMvc.perform(delete(BASE_URL + "/internal/" + userId)
+                        .header("X-Internal-Api-Key", "wrong-key"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void getAllUsers_ShouldReturnPage_WithDefaultPagination() throws Exception {
-        createUser("John", "Doe", "john1@test.com", "password");
-        createUser("Jane", "Smith", "jane@test.com", "password");
-        createUser("Bob", "Johnson", "bob@test.com", "password");
+        createUser("John", "Doe", "john1@test.com");
+        createUser("Jane", "Smith", "jane@test.com");
+        createUser("Bob", "Johnson", "bob@test.com");
 
         mockMvc.perform(withAdmin(get(BASE_URL)))
                 .andExpect(status().isOk())
@@ -364,9 +313,9 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getAllUsers_ShouldReturnFilteredResults_WhenNameProvided() throws Exception {
-        createUser("John", "Doe", "john@test.com", "password");
-        createUser("Johnny", "Depp", "johnny@test.com", "password");
-        createUser("Jane", "Smith", "jane@test.com", "password");
+        createUser("John", "Doe", "john@test.com");
+        createUser("Johnny", "Depp", "johnny@test.com");
+        createUser("Jane", "Smith", "jane@test.com");
 
         mockMvc.perform(withAdmin(get(BASE_URL).param("name", "John")))
                 .andExpect(status().isOk())
@@ -376,9 +325,9 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getAllUsers_ShouldReturnFilteredResults_WhenSurnameProvided() throws Exception {
-        createUser("John", "Doe", "john@test.com", "password");
-        createUser("Jane", "Doe", "jane@test.com", "password");
-        createUser("Bob", "Smith", "bob@test.com", "password");
+        createUser("John", "Doe", "john@test.com");
+        createUser("Jane", "Doe", "jane@test.com");
+        createUser("Bob", "Smith", "bob@test.com");
 
         mockMvc.perform(withAdmin(get(BASE_URL).param("surname", "Doe")))
                 .andExpect(status().isOk())
@@ -388,9 +337,9 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getAllUsers_ShouldReturnFilteredResults_WhenBothNameAndSurnameProvided() throws Exception {
-        createUser("John", "Doe", "john@test.com", "password");
-        createUser("John", "Smith", "john.smith@test.com", "password");
-        createUser("Jane", "Doe", "jane@test.com", "password");
+        createUser("John", "Doe", "john@test.com");
+        createUser("John", "Smith", "john.smith@test.com");
+        createUser("Jane", "Doe", "jane@test.com");
 
         mockMvc.perform(withAdmin(get(BASE_URL)
                         .param("name", "John")
@@ -403,7 +352,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void getAllUsers_ShouldReturnEmptyPage_WhenNoMatchFound() throws Exception {
-        createUser("John", "Doe", "john@test.com", "password");
+        createUser("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(get(BASE_URL).param("name", "NonExistent")))
                 .andExpect(status().isOk())
@@ -414,7 +363,7 @@ class UserControllerTest extends BaseIntegrationTest {
     @Test
     void getAllUsers_ShouldRespectPagination() throws Exception {
         for (int i = 0; i < 15; i++) {
-            createUser("User" + i, "Last" + i, "user" + i + "@test.com", "password");
+            createUser("User" + i, "Last" + i, "user" + i + "@test.com");
         }
 
         mockMvc.perform(withAdmin(get(BASE_URL)
@@ -430,7 +379,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void updateUser_ShouldReturn200_WhenAdminUpdates() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         String updateJson = """
                 {
@@ -453,7 +402,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void updateUser_ShouldReturn200_WhenUserUpdatesOwnData() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         String updateJson = """
                 {
@@ -473,7 +422,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void updateUser_ShouldReturn403_WhenUserUpdatesOtherUser() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         String updateJson = """
                 {
@@ -510,8 +459,8 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void updateUser_ShouldReturn409_WhenEmailAlreadyExists() throws Exception {
-        createUser("John", "Doe", "john@test.com", "password");
-        Long secondUserId = createUserAndGetId("Jane", "Smith", "jane@test.com", "password");
+        createUser("John", "Doe", "john@test.com");
+        Long secondUserId = createUserAndGetId("Jane", "Smith", "jane@test.com");
 
         String updateJson = """
                 {
@@ -531,7 +480,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void updateUser_ShouldAllowUpdatingWithSameEmail() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         String updateJson = """
                 {
@@ -552,7 +501,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void updateUser_ShouldReturn400_WhenInvalidData() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         String invalidJson = """
                 {
@@ -571,7 +520,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deleteUser_ShouldReturn204_WhenAdminDeletes() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(delete(BASE_URL + "/" + userId)))
                 .andExpect(status().isNoContent());
@@ -581,7 +530,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deleteUser_ShouldReturn204_WhenUserDeletesOwnAccount() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withUser(userId, delete(BASE_URL + "/" + userId)))
                 .andExpect(status().isNoContent());
@@ -591,7 +540,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deleteUser_ShouldReturn403_WhenUserDeletesOtherUser() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withUser(999L, delete(BASE_URL + "/" + userId)))
                 .andExpect(status().isForbidden());
@@ -606,7 +555,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deleteUser_ShouldReturn404_WhenUserAlreadyDeleted() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(delete(BASE_URL + "/" + userId)))
                 .andExpect(status().isNoContent());
@@ -617,7 +566,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void activateUser_ShouldReturn204_WhenUserExists() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(patch(BASE_URL + "/" + userId + "/deactivate")))
                 .andExpect(status().isNoContent());
@@ -632,7 +581,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deactivateUser_ShouldReturn204_WhenUserExists() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(patch(BASE_URL + "/" + userId + "/deactivate")))
                 .andExpect(status().isNoContent());
@@ -644,7 +593,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void activateUser_ShouldReturn403_WhenUserTriesToActivate() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withUser(userId, patch(BASE_URL + "/" + userId + "/activate")))
                 .andExpect(status().isForbidden());
@@ -652,7 +601,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deactivateUser_ShouldReturn403_WhenUserTriesToDeactivate() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withUser(userId, patch(BASE_URL + "/" + userId + "/deactivate")))
                 .andExpect(status().isForbidden());
@@ -674,7 +623,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void activateUser_ShouldWork_WhenUserAlreadyActive() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(patch(BASE_URL + "/" + userId + "/activate")))
                 .andExpect(status().isNoContent());
@@ -686,7 +635,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
     @Test
     void deactivateUser_ShouldWork_WhenUserAlreadyDeactivated() throws Exception {
-        Long userId = createUserAndGetId("John", "Doe", "john@test.com", "password");
+        Long userId = createUserAndGetId("John", "Doe", "john@test.com");
 
         mockMvc.perform(withAdmin(patch(BASE_URL + "/" + userId + "/deactivate")))
                 .andExpect(status().isNoContent());
@@ -751,16 +700,15 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-    private void createUser(String name, String surname, String email, String password) throws Exception {
+    private void createUser(String name, String surname, String email) throws Exception {
         String userJson = """
                 {
                     "name": "%s",
                     "surname": "%s",
                     "birthDate": "2000-11-05",
-                    "email": "%s",
-                    "password": "%s"
+                    "email": "%s"
                 }
-                """.formatted(name, surname, email, password);
+                """.formatted(name, surname, email);
 
         mockMvc.perform(post(BASE_URL + "/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -768,16 +716,15 @@ class UserControllerTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated());
     }
 
-    private Long createUserAndGetId(String name, String surname, String email, String password) throws Exception {
+    private Long createUserAndGetId(String name, String surname, String email) throws Exception {
         String userJson = """
                 {
                     "name": "%s",
                     "surname": "%s",
                     "birthDate": "2000-11-05",
-                    "email": "%s",
-                    "password": "%s"
+                    "email": "%s"
                 }
-                """.formatted(name, surname, email, password);
+                """.formatted(name, surname, email);
 
         MvcResult result = mockMvc.perform(post(BASE_URL + "/register")
                         .contentType(MediaType.APPLICATION_JSON)

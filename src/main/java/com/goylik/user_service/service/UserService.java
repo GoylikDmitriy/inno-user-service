@@ -3,7 +3,6 @@ package com.goylik.user_service.service;
 import com.goylik.user_service.model.dto.request.CreateUserRequest;
 import com.goylik.user_service.model.dto.request.UpdateUserRequest;
 import com.goylik.user_service.model.dto.response.UserResponse;
-import com.goylik.user_service.model.enums.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -16,12 +15,12 @@ import java.util.List;
  */
 public interface UserService {
     /**
-     * Creates a new user with determined {@link Role}.
+     * Creates a new user.
      *
      * @param request DTO containing user creation data
      * @return created user representation
      */
-    UserResponse createUser(CreateUserRequest request, Role role);
+    UserResponse createUser(CreateUserRequest request);
 
     /**
      * Retrieves a user by its identifier.
