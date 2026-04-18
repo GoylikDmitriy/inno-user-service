@@ -30,7 +30,7 @@ class HeaderAuthFilterTest {
     private HeaderAuthFilter filter;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() {
         filter = new HeaderAuthFilter();
         SecurityContextHolder.clearContext();
     }

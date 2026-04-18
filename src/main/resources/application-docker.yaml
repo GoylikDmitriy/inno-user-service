@@ -36,8 +36,8 @@ resilience4j:
         timeoutDuration: 5s
 
 client:
-  auth-service:
-    url: ${CLIENT_AUTH_SERVICE_URL}
+  gateway:
+    url: ${GATEWAY_URL}
 
 server:
   port: 8081
