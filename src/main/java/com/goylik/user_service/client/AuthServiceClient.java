@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
         name = "auth-service",
-        url = "${client.auth-service.url}",
+        url = "${client.gateway.url}",
         fallback = AuthServiceClientFallback.class,
         configuration = AuthServiceFeignConfig.class)
 public interface AuthServiceClient {

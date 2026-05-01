@@ -30,7 +30,7 @@ class HeaderAuthFilterTest {
     private HeaderAuthFilter filter;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() {
         filter = new HeaderAuthFilter();
         SecurityContextHolder.clearContext();
     }
@@ -44,6 +44,7 @@ class HeaderAuthFilterTest {
     void doFilterInternal_ShouldSetAuthentication_WhenBothHeadersAreValid() throws ServletException, IOException {
         when(request.getHeader("X-User-Id")).thenReturn("123");
         when(request.getHeader("X-User-Role")).thenReturn("ROLE_USER");
+        when(request.getRequestURI()).thenReturn("/api/users/some-endpoint");
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -63,6 +64,7 @@ class HeaderAuthFilterTest {
     void doFilterInternal_ShouldNotSetAuthentication_WhenUserIdIsMissing() throws ServletException, IOException {
         when(request.getHeader("X-User-Id")).thenReturn(null);
         when(request.getHeader("X-User-Role")).thenReturn("ROLE_USER");
+        when(request.getRequestURI()).thenReturn("/api/users/some-endpoint");
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -74,6 +76,7 @@ class HeaderAuthFilterTest {
     void doFilterInternal_ShouldNotSetAuthentication_WhenRoleIsMissing() throws ServletException, IOException {
         when(request.getHeader("X-User-Id")).thenReturn("123");
         when(request.getHeader("X-User-Role")).thenReturn(null);
+        when(request.getRequestURI()).thenReturn("/api/users/some-endpoint");
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -85,6 +88,7 @@ class HeaderAuthFilterTest {
     void doFilterInternal_ShouldReturn401_WhenUserIdIsNotNumber() throws ServletException, IOException {
         when(request.getHeader("X-User-Id")).thenReturn("abc");
         when(request.getHeader("X-User-Role")).thenReturn("ROLE_USER");
+        when(request.getRequestURI()).thenReturn("/api/users/some-endpoint");
 
         StringWriter responseWriter = new StringWriter();
         when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
@@ -101,6 +105,7 @@ class HeaderAuthFilterTest {
     void doFilterInternal_ShouldReturn401_WhenUserIdIsEmptyString() throws ServletException, IOException {
         when(request.getHeader("X-User-Id")).thenReturn("");
         when(request.getHeader("X-User-Role")).thenReturn("ROLE_USER");
+        when(request.getRequestURI()).thenReturn("/api/users/some-endpoint");
 
         StringWriter responseWriter = new StringWriter();
         when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
