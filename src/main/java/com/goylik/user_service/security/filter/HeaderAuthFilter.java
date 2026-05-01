@@ -21,6 +21,11 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        if (request.getRequestURI().startsWith("/actuator")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String userIdStr = request.getHeader("X-User-Id");
         String role = request.getHeader("X-User-Role");
 

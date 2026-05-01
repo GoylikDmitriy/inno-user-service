@@ -35,6 +35,21 @@ resilience4j:
       default:
         timeoutDuration: 5s
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      show-components: always
+  info:
+    env:
+      enabled: true
+
 client:
   gateway:
     url: ${GATEWAY_URL:http://localhost:8080}
